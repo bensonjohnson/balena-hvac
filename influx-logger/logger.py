@@ -2,6 +2,11 @@ from influxdb_client import InfluxDBClient, Point
 import requests
 import time
 import os
+import urllib3
+from urllib3.exceptions import InsecureRequestWarning
+
+# Suppress InsecureRequestWarning
+urllib3.disable_warnings(InsecureRequestWarning)
 
 # Read environment variables
 api_url = os.getenv('API_URL', 'http://localhost:5000/getstatus')
