@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Temperature Control Dashboard</title>
+    <link rel="stylesheet" type="text/css" href="styles.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script>
+  $(document).ready(function() {
+    // Function to fetch data and update UI
+    function fetchData() {
+      $.ajax({
+        url: '/api/getstatus',
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        success: function(data) {
+          $('#internalTemp').text(data.temperature + ' °F');
+          $('#setTemp').text(data.setTemperature + ' °F');
+          $('#pidValue').text(data.pidValue);
+          $('#systemState').text(data.systemState);
+        },
+        error: function(jqXHR, textStatus, errorThrown) {
+          console.error('Error fetching data: ', textStatus, errorThrown);
+        }
+      });
+    }
+
+            // Function to set new temperature
+            function setTemperature(newTemp) {
+                $.post('/api/settemp', { settemp: newTemp }, function(response) {
+                    $('#statusMessage').text(response.message);
+                    fetchData(); // Refresh data after setting new temp
+                }, 'json');
+            }
+
+            // Fetch initial data
+            fetchData();
+
+            // Set interval for fetching data every 5 seconds
+            setInterval(fetchData, 5000);
+
+            // Event listener for set temperature form
+            $('#setTempForm').submit(function(event) {
+                event.preventDefault();
+                var newTemp = $('#newTemp').val();
+                setTemperature(newTemp);
+            });
+        });
+    </script>
+</head>
+<body>
+    <h1>Temperature Control Dashboard</h1>
+    <div id="tempDisplay">
+        <p>Internal Temperature: <span id="internalTemp">Loading...</span></p>
+        <p>Set Temperature: <span id="setTemp">Loading...</span></p>
+        <p>PID Calculation: <span id="pidValue">Loading...</span></p>
+        <p>System State: <span id="systemState">Loading...</span></p>
+    </div>
+    <div id="tempSetControl">
+        <form id="setTempForm">
+            <label for="newTemp">Set New Temperature (°F):</label>
+            <input type="number" id="newTemp" name="newtemp" step="0.1">
+            <input type="submit" value="Set Temperature">
+        </form>
+        <p id="statusMessage"></p>
+    </div>
+</body>
+</html>

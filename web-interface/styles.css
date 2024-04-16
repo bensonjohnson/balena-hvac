@@ -1,0 +1,77 @@
+/* General body styles */
+body {
+    font-family: 'Arial', sans-serif;
+    background-color: #f4f4f9;
+    color: #333;
+    margin: 0;
+    padding: 20px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    box-sizing: border-box;
+}
+
+h1 {
+    color: #0d6efd;
+}
+
+/* Style for the main display container */
+#tempDisplay {
+    background-color: #ffffff;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    padding: 20px;
+    border-radius: 10px;
+    width: 300px;
+    margin: 20px;
+    text-align: center;
+}
+
+p {
+    margin: 10px 0;
+    font-size: 16px;
+    color: #555;
+}
+
+span {
+    display: block;
+    font-size: 24px;
+    color: #333;
+    margin-top: 5px;
+}
+
+/* Style for the input form */
+#tempSetControl {
+    background-color: #ffffff;
+    padding: 20px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    border-radius: 10px;
+    width: 300px;
+    text-align: center;
+}
+
+input[type="number"],
+input[type="submit"] {
+    padding: 10px;
+    margin-top: 10px;
+    border-radius: 5px;
+    border: 1px solid #ccc;
+    width: calc(100% - 24px);
+}
+
+input[type="submit"] {
+    background-color: #0d6efd;
+    color: white;
+    cursor: pointer;
+}
+
+input[type="submit"]:hover {
+    background-color: #0a58ca;
+}
+
+/* Responsive adjustments */
+@media (max-width: 600px) {
+    body {
+        flex-direction: column;
+    }
+}
