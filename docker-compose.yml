@@ -17,3 +17,14 @@ services:
     depends_on:
       - web-interface
       - sensor-controller
+  influx-logger:
+    build: ./influx-logger
+    depends_on:
+      - sensor-controller
+    environment:
+      - API_URL=http://sensor-controller:5000/getstatus
+      - INFLUXDB_URL=http://influxdb:8086
+      - INFLUXDB_TOKEN=YourInfluxDBTokenHere
+      - INFLUXDB_ORG=YourOrgName
+      - INFLUXDB_BUCKET=YourBucketName
+      - LOCATION=thermostat
