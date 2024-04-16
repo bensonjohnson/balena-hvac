@@ -1,0 +1,15 @@
+version: '2'
+name: SBC-HVAC
+application:
+  type: microservices  # or 'standard' for a single-container setup
+services:
+  - name: sensor-controller
+    build: ./sensor-controller
+  - name: web-interface
+    build: ./web-interface
+  - name: nginx-proxy
+    build: ./nginx-proxy
+  - name: influx-logger
+    build: ./influx-logger
+  - name: influxdb
+    image: influxdb:latest
