@@ -1,4 +1,6 @@
-version: '2'
+version: '2.1'
+type: 'sw.application'
+slug: g_benson_johnson/hvac
 name: SBC-HVAC
 application:
   type: microservices  # or 'standard' for a single-container setup
