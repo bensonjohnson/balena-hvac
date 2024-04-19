@@ -9,7 +9,8 @@ services:
 
   web-interface:
     build: ./web-interface
-
+    depends_on:
+      - sensor-controller
   nginx-proxy:
     build: ./nginx-config
     ports:
