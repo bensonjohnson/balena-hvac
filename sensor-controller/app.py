@@ -21,8 +21,7 @@ GPIO.setmode(GPIO.BCM)
 GPIO.setup(coolingRelayPin, GPIO.OUT)
 GPIO.setup(heatingRelayPin, GPIO.OUT)
 GPIO.setup(fanRelayPin, GPIO.OUT)
-
-# Initialize all relays to off
+time.sleep(0.1)  # Wait for 100ms to ensure GPIO states are set
 GPIO.output(coolingRelayPin, GPIO.LOW)
 GPIO.output(heatingRelayPin, GPIO.LOW)
 GPIO.output(fanRelayPin, GPIO.LOW)
