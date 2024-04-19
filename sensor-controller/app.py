@@ -12,9 +12,9 @@ app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}})
 
 # GPIO Pins (Use BCM numbering)
-coolingRelayPin = 18
-heatingRelayPin = 23
-fanRelayPin = 24
+coolingRelayPin = 18 #purple
+heatingRelayPin = 23 #blue
+fanRelayPin = 24 #green
 
 # Setup GPIO
 GPIO.setmode(GPIO.BCM)
