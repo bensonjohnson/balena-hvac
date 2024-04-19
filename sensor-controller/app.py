@@ -60,41 +60,24 @@ def set_temp():
     pid.setpoint = new_temp
     return jsonify({'message': 'Set temperature updated to {} °F'.format(new_temp)})
 
-@app.route('/test/relay/<string:relay>/<string:state>', methods=['GET'])
-def test_relay(relay, state):
-    pin_map = {
-        'cooling': coolingRelayPin,
-        'heating': heatingRelayPin,
-        'fan': fanRelayPin
-    }
-    if relay in pin_map:
-        if state == 'on':
-            GPIO.output(pin_map[relay], GPIO.HIGH)
-        elif state == 'off':
-            GPIO.output(pin_map[relay], GPIO.LOW)
-        return jsonify({'message': f'{relay} turned {state}'})
-    return jsonify({'error': 'Invalid relay or state'}), 400
-
-
 def adjust_relays(pid_output, current_temp):
-    print(f"Adjusting Relays with PID output: {pid_output}, Current Temperature: {current_temp}")
     if current_temp < setpointTempF - pid_output:
+        # Turn on heating
         GPIO.output(coolingRelayPin, GPIO.LOW)
         GPIO.output(heatingRelayPin, GPIO.HIGH)
         GPIO.output(fanRelayPin, GPIO.HIGH)
-        print("Heating: Cooling LOW, Heating HIGH, Fan HIGH")
         return "Heating"
     elif current_temp > setpointTempF + pid_output:
+        # Turn on cooling
         GPIO.output(coolingRelayPin, GPIO.HIGH)
         GPIO.output(heatingRelayPin, GPIO.LOW)
         GPIO.output(fanRelayPin, GPIO.HIGH)
-        print("Cooling: Cooling HIGH, Heating LOW, Fan HIGH")
         return "Cooling"
     else:
+        # Turn off all
         GPIO.output(coolingRelayPin, GPIO.LOW)
         GPIO.output(heatingRelayPin, GPIO.LOW)
         GPIO.output(fanRelayPin, GPIO.LOW)
-        print("Off: All LOW")
         return "Off"
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
