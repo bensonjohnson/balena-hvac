@@ -55,38 +55,6 @@ def get_status():
         'systemState': system_state
     })
 
-# Sensor data storage
-sensor_data = []
-
-@app.route('/submit_sensor_data', methods=['POST'])
-def submit_sensor_data():
-    data = request.get_json()
-    sensor_data.append(data)
-    return jsonify({'message': 'Sensor data received'})
-
-@app.route('/process_sensors', methods=['GET'])
-def process_sensors():
-    global setpointTempF
-    farthest_sensor = get_sensor_farthest_from_setpoint()
-    if farthest_sensor:
-        temperature_f = farthest_sensor['temperature']
-        pid_value = pid(temperature_f)
-        system_state = adjust_relays(pid_value, temperature_f)
-        return jsonify({
-            'temperature': temperature_f,
-            'humidity': farthest_sensor.get('humidity', None),
-            'setTemperature': setpointTempF,
-            'pidValue': pid_value,
-            'systemState': system_state
-        })
-    return jsonify({'message': 'No sensor data available'})
-
-def get_sensor_farthest_from_setpoint():
-    if not sensor_data:
-        return None
-    # Calculate the sensor that is farthest from the setpoint
-    return max(sensor_data, key=lambda x: abs(x['temperature'] - setpointTempF))
-
 @app.route('/settemp', methods=['POST'])
 def set_temp():
     global setpointTempF
