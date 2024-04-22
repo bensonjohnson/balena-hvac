@@ -52,16 +52,10 @@ def get_status():
         'humidity': humidity,
         'setTemperature': setpointTempF,
         'pidValue': pid_value,
-        'systemState': system_state
-    })
-
-@app.route('/pid', methods=['GET'])
-def get_pid():
-    return jsonify({
+        'systemState': system_state,
         'Kp': pid.Kp,
         'Ki': pid.Ki,
         'Kd': pid.Kd,
-        'setpoint': pid.setpoint
     })
 
 @app.route('/pid', methods=['POST'])

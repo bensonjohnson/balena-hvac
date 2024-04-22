@@ -1,4 +1,4 @@
-version: '1.0.18'
+version: '1.0.19'
 type: 'sw.application'
 slug: g_benson_johnson/hvac
 name: SBC-HVAC
