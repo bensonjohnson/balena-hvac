@@ -29,22 +29,22 @@ def log_data():
     if response.status_code == 200:
         data = response.json()
         if use_influxdb:
-            pid_value = float(data.get('pidValue', 0))
-            point = Point("climate") \
-                    .tag("location", location) \
-                    .field("temperature", float(data['temperature'])) \
-                    .field("humidity", float(data['humidity'])) \
-                    .field("state", data['systemState']) \
-                    .field("pidValue", pid_value)
-            point = Point("PID") \
-                    .tag("location",location) \
-                    .field("setpoint", float(data['setTemperature']))\
-                    .field("pidValue", data['pidValue'])\
-                    .field("state", data['systemState']) \
-                    .field("Kp", data['Kp'])\
-                    .field("Ki", data['Ki'])\
-                    .field("Kd", data['Kd'])
-            write_api.write(bucket=influx_bucket, org=influx_org, record=point)
+            climate_point = Point("climate") \
+                            .tag("location", location) \
+                            .field("temperature", float(data['temperature'])) \
+                            .field("humidity", float(data['humidity'])) \
+                            .field("state", data['systemState']) \
+                            .field("pidValue", float(data.get('pidValue', 0)))
+            pid_point = Point("PID") \
+                        .tag("location", location) \
+                        .field("setpoint", float(data['setTemperature'])) \
+                        .field("pidValue", float(data['pidValue'])) \
+                        .field("state", data['systemState']) \
+                        .field("Kp", float(data['Kp'])) \
+                        .field("Ki", float(data['Ki'])) \
+                        .field("Kd", float(data['Kd']))
+            # Write points as a batch
+            write_api.write(bucket=influx_bucket, org=influx_org, record=[climate_point, pid_point])
         else:
             print("InfluxDB logging is disabled. Data:", data)
     else:
