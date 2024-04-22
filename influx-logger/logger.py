@@ -39,11 +39,11 @@ def log_data():
             point = Point("PID") \
                     .tag("location",location) \
                     .field("setpoint", float(data['setTemperature']))\
-                    .field("pidValue", float(data['pidValue']))\
+                    .field("pidValue", data['pidValue'])\
                     .field("state", data['systemState']) \
-                    .field("Kp", float(data['Kp']))\
-                    .field("Ki", float(data['Ki']))\
-                    .field("Kd", float(data['Kd']))
+                    .field("Kp", data['Kp'])\
+                    .field("Ki", data['Ki'])\
+                    .field("Kd", data['Kd'])
             write_api.write(bucket=influx_bucket, org=influx_org, record=point)
         else:
             print("InfluxDB logging is disabled. Data:", data)
