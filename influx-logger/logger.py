@@ -9,7 +9,7 @@ from urllib3.exceptions import InsecureRequestWarning
 urllib3.disable_warnings(InsecureRequestWarning)
 
 # Read environment variables
-api_url = os.getenv('API_URL', 'http://localhost:5000/getstatus')
+api_url = os.getenv('API_URL', '/api/getstatus')
 influx_url = os.getenv('INFLUXDB_URL', 'http://localhost:8086')
 influx_token = os.getenv('INFLUXDB_TOKEN', 'YourInfluxDBTokenHere')
 influx_org = os.getenv('INFLUXDB_ORG', 'YourOrgName')
@@ -43,7 +43,7 @@ def log_data():
         print(f"Failed to fetch data from API. Status code: {response.status_code}")
 
 def log_pid_data():
-    pid_response = requests.get(os.getenv('PID_API_URL', 'http://localhost:5000/pid'), verify=False)
+    pid_response = requests.get(os.getenv('PID_API_URL', '/api/pid'), verify=False)
     if pid_response.status_code == 200:
         pid_data = pid_response.json()
         if use_influxdb:
