@@ -36,6 +36,14 @@ def log_data():
                     .field("humidity", float(data['humidity'])) \
                     .field("state", data['systemState']) \
                     .field("pidValue", pid_value)
+            point = Point("PID") \
+                    .tag("location",location) \
+                    .field("setpoint", float(data['setTemperature']))\
+                    .field("pidValue", float(data['pidValue']))\
+                    .field("state", data['systemState']) \
+                    .field("Kp", float(data['Kp']))\
+                    .field("Ki", float(data['Ki']))\
+                    .field("Kd", float(data['Kd']))
             write_api.write(bucket=influx_bucket, org=influx_org, record=point)
         else:
             print("InfluxDB logging is disabled. Data:", data)
