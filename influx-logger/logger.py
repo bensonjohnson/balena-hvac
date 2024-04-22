@@ -25,16 +25,23 @@ if use_influxdb:
     write_api = client.write_api()
 
 def log_data():
-    response = requests.get(api_url)
+    response = requests.get(api_url, verify=False)  # Added verify=False to disable SSL verification
     if response.status_code == 200:
         data = response.json()
         if use_influxdb:
-            point = Point("climate").tag("location", location).field("temperature", float(data['temperature'])).field("humidity", float(data['humidity'])).field("state", data['systemState'])
+            # Make sure to convert pid_value to float
+            pid_value = float(data.get('pidValue', 0))
+            point = Point("climate") \
+                    .tag("location", location) \
+                    .field("temperature", float(data['temperature'])) \
+                    .field("humidity", float(data['humidity'])) \
+                    .field("state", data['systemState']) \
+                    .field("pidValue", pid_value)
             write_api.write(bucket=influx_bucket, org=influx_org, record=point)
         else:
             print("InfluxDB logging is disabled. Data:", data)
     else:
-        print("Failed to fetch data from API. Status code:", response.status_code)
+        print(f"Failed to fetch data from API. Status code: {response.status_code}")
 
 if __name__ == '__main__':
     while True:
