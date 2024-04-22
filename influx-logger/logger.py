@@ -29,7 +29,6 @@ def log_data():
     if response.status_code == 200:
         data = response.json()
         if use_influxdb:
-            # Make sure to convert pid_value to float
             pid_value = float(data.get('pidValue', 0))
             point = Point("climate") \
                     .tag("location", location) \
@@ -43,7 +42,24 @@ def log_data():
     else:
         print(f"Failed to fetch data from API. Status code: {response.status_code}")
 
+def log_pid_data():
+    pid_response = requests.get(os.getenv('PID_API_URL', 'http://localhost:5000/pid'), verify=False)
+    if pid_response.status_code == 200:
+        pid_data = pid_response.json()
+        if use_influxdb:
+            pid_point = Point("pid_params").tag("location", location) \
+                                            .field("Kp", float(pid_data['Kp'])) \
+                                            .field("Ki", float(pid_data['Ki'])) \
+                                            .field("Kd", float(pid_data['Kd'])) \
+                                            .field("setpoint", float(pid_data['setpoint']))
+            write_api.write(bucket=influx_bucket, org=influx_org, record=pid_point)
+        else:
+            print("InfluxDB PID logging is disabled. Data:", pid_data)
+    else:
+        print(f"Failed to fetch PID data from API. Status code: {pid_response.status_code}")
+
 if __name__ == '__main__':
     while True:
         log_data()
+        log_pid_data()
         time.sleep(60)  # Log every 60 seconds

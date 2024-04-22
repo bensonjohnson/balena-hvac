@@ -55,6 +55,32 @@ def get_status():
         'systemState': system_state
     })
 
+@app.route('/pid', methods=['GET'])
+def get_pid():
+    return jsonify({
+        'Kp': pid.Kp,
+        'Ki': pid.Ki,
+        'Kd': pid.Kd,
+        'setpoint': pid.setpoint
+    })
+
+@app.route('/pid', methods=['POST'])
+def update_pid():
+    try:
+        data = request.get_json()
+        pid.Kp = float(data['Kp'])
+        pid.Ki = float(data['Ki'])
+        pid.Kd = float(data['Kd'])
+        pid.setpoint = float(data['setpoint'])
+        return jsonify({'message': 'PID parameters updated successfully'}), 200
+    except KeyError as e:
+        return jsonify({'error': f'Missing key in data: {str(e)}'}), 400
+    except ValueError as e:
+        return jsonify({'error': f'Invalid value for PID parameters: {str(e)}'}), 400
+    except Exception as e:
+        return jsonify({'error': f'An error occurred: {str(e)}'}), 500
+
+
 # Sensor data storage
 sensor_data = []
 
