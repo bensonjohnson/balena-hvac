@@ -1,7 +1,7 @@
 /* General body styles */
 body {
     font-family: 'Arial', sans-serif;
-    background-color: #f4f4f9;
+    background: #000000 url(/images/ottawa.jpg) center center/cover no-repeat;
     color: #333;
     margin: 0;
     padding: 20px;
@@ -16,7 +16,6 @@ h1 {
     color: #0d6efd;
 }
 
-/* Style for the main display container */
 #tempDisplay {
     background-color: #ffffff;
     box-shadow: 0 4px 8px rgba(0,0,0,0.1);
