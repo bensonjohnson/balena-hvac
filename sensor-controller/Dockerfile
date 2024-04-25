@@ -1,5 +1,4 @@
 FROM balenalib/raspberrypi0-2w-64-alpine-python:build
-RUN apk add py3-gunicorn
 WORKDIR /usr/src/app
 COPY requirements.txt ./
 RUN pip install -r requirements.txt
