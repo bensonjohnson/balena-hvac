@@ -1,7 +1,7 @@
 /* General body styles */
 body {
     font-family: 'Arial', sans-serif;
-    background: #000000 url(/usr/share/nginx/html/background.jpg) center center/cover no-repeat;
+    background: url(/background.jpg) center center/cover no-repeat;
     color: #333;
     margin: 0;
     padding: 20px;
