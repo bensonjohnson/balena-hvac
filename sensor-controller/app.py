@@ -107,29 +107,79 @@ def get_sensor_farthest_from_setpoint():
     # Calculate the sensor that is farthest from the setpoint
     return max(sensor_data, key=lambda x: abs(x['temperature'] - setpointTempF))
 
-@app.route('/settemp', methods=['POST'])
-def set_temp():
-    global setpointTempF
-    new_temp = float(request.form['settemp'])
-    setpointTempF = new_temp
-    pid.setpoint = new_temp
-    return jsonify({'message': 'Set temperature updated to {} °F'.format(new_temp)})
+# Manual override flag
+manual_override = False
+
+@app.route('/toggle_system', methods=['POST'])
+def toggle_system():
+    global manual_override
+    data = request.get_json()
+    state = data.get('state', 'off').lower()
+
+    if state == 'on':
+        manual_override = False
+        response_message = 'PID control reactivated'
+    elif state == 'off':
+        manual_override = True
+        GPIO.output(coolingRelayPin, GPIO.LOW)
+        GPIO.output(heatingRelayPin, GPIO.LOW)
+        GPIO.output(fanRelayPin, GPIO.LOW)
+        response_message = 'System turned off, manual override activated'
+    else:
+        return jsonify({'error': 'Invalid state specified'}), 400
+    
+    return jsonify({'message': response_message}), 200
+
+@app.route('/off', methods=['POST'])
+def turn_off():
+    global manual_override
+    manual_override = True
+    GPIO.output(coolingRelayPin, GPIO.LOW)
+    GPIO.output(heatingRelayPin, GPIO.LOW)
+    GPIO.output(fanRelayPin, GPIO.LOW)
+    return jsonify({'message': 'All systems turned off'}), 200
+
+@app.route('/manual_control', methods=['POST'])
+def manual_control():
+    global manual_override
+    data = request.get_json()
+    mode = data.get('mode', 'off').lower()
+    manual_override = True
+    if mode == 'off':
+        GPIO.output(coolingRelayPin, GPIO.LOW)
+        GPIO.output(heatingRelayPin, GPIO.LOW)
+        GPIO.output(fanRelayPin, GPIO.LOW)
+        response_message = 'All systems turned off'
+    elif mode == 'cooling':
+        GPIO.output(coolingRelayPin, GPIO.HIGH)
+        GPIO.output(heatingRelayPin, GPIO.LOW)
+        GPIO.output(fanRelayPin, GPIO.HIGH)
+        response_message = 'Cooling mode activated'
+    elif mode == 'heating':
+        GPIO.output(coolingRelayPin, GPIO.LOW)
+        GPIO.output(heatingRelayPin, GPIO.HIGH)
+        GPIO.output(fanRelayPin, GPIO.HIGH)
+        response_message = 'Heating mode activated'
+    else:
+        manual_override = False
+        return jsonify({'error': 'Invalid mode specified'}), 400
+    return jsonify({'message': response_message}), 200
 
 def adjust_relays(pid_output, current_temp):
+    global manual_override
+    if manual_override:
+        return "Manual override active"
     if current_temp < setpointTempF - pid_output:
-        # Turn on heating
         GPIO.output(coolingRelayPin, GPIO.LOW)
         GPIO.output(heatingRelayPin, GPIO.HIGH)
         GPIO.output(fanRelayPin, GPIO.HIGH)
         return "Heating"
     elif current_temp > setpointTempF + pid_output:
-        # Turn on cooling
         GPIO.output(coolingRelayPin, GPIO.HIGH)
         GPIO.output(heatingRelayPin, GPIO.LOW)
         GPIO.output(fanRelayPin, GPIO.HIGH)
         return "Cooling"
     else:
-        # Turn off all
         GPIO.output(coolingRelayPin, GPIO.LOW)
         GPIO.output(heatingRelayPin, GPIO.LOW)
         GPIO.output(fanRelayPin, GPIO.LOW)

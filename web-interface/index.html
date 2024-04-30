@@ -6,48 +6,75 @@
     <link rel="stylesheet" type="text/css" href="styles.css">
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
     <script>
-  $(document).ready(function() {
-    // Function to fetch data and update UI
-    function fetchData() {
-      $.ajax({
-        url: '/api/getstatus',
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        success: function(data) {
-          $('#internalTemp').text(data.temperature + ' °F');
-          $('#setTemp').text(data.setTemperature + ' °F');
-          $('#pidValue').text(data.pidValue);
-          $('#systemState').text(data.systemState);
+    $(document).ready(function() {
+        // Function to fetch data and update UI
+        function fetchData() {
+            $.ajax({
+                url: '/api/getstatus',
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                success: function(data) {
+                    $('#internalTemp').text(data.temperature + ' °F');
+                    $('#setTemp').text(data.setTemperature + ' °F');
+                    $('#pidValue').text(data.pidValue);
+                    $('#systemState').text(data.systemState);
+                },
+                error: function(jqXHR, textStatus, errorThrown) {
+                    console.error('Error fetching data: ', textStatus, errorThrown);
+                }
+            });
+        }
+
+        // Function to set new temperature
+        function setTemperature(newTemp) {
+            $.post('/api/settemp', { settemp: newTemp }, function(response) {
+                $('#statusMessage').text(response.message);
+                fetchData(); // Refresh data after setting new temp
+            }, 'json');
+        }
+
+        function toggleSystem(state) {
+    $.ajax({
+        url: '/api/toggle_system',
+        method: 'POST',
+        contentType: 'application/json', // Explicitly set the content type to application/json
+        data: JSON.stringify({ state: state }), // Ensure the data is sent as a JSON string
+        dataType: 'json', // Expected response type
+        success: function(response) {
+            $('#toggleMessage').text(response.message);
+            fetchData(); // Refresh data after toggling system
         },
         error: function(jqXHR, textStatus, errorThrown) {
-          console.error('Error fetching data: ', textStatus, errorThrown);
+            console.error('Error toggling system: ', textStatus, errorThrown);
+            $('#toggleMessage').text('Error: ' + textStatus + ' ' + errorThrown);
         }
-      });
-    }
+    });
+}
 
-            // Function to set new temperature
-            function setTemperature(newTemp) {
-                $.post('/api/settemp', { settemp: newTemp }, function(response) {
-                    $('#statusMessage').text(response.message);
-                    fetchData(); // Refresh data after setting new temp
-                }, 'json');
-            }
+        // Fetch initial data
+        fetchData();
 
-            // Fetch initial data
-            fetchData();
+        // Set interval for fetching data every 5 seconds
+        setInterval(fetchData, 5000);
 
-            // Set interval for fetching data every 5 seconds
-            setInterval(fetchData, 5000);
-
-            // Event listener for set temperature form
-            $('#setTempForm').submit(function(event) {
-                event.preventDefault();
-                var newTemp = $('#newTemp').val();
-                setTemperature(newTemp);
-            });
+        // Event listener for set temperature form
+        $('#setTempForm').submit(function(event) {
+            event.preventDefault();
+            var newTemp = $('#newTemp').val();
+            setTemperature(newTemp);
         });
+
+        // Event listener for toggle switch
+        $('#toggleSwitch').change(function() {
+            if(this.checked) {
+                toggleSystem('on');
+            } else {
+                toggleSystem('off');
+            }
+        });
+    });
     </script>
 </head>
 <body>
@@ -56,6 +83,14 @@
         <p>Set Temperature: <span id="setTemp">Loading...</span></p>
         <p>PID Calculation: <span id="pidValue">Loading...</span></p>
         <p>System State: <span id="systemState">Loading...</span></p>
+    </div>
+    <div id="controlPanel">
+        <label class="switch">
+            <input type="checkbox" id="toggleSwitch">
+            <span class="slider round"></span>
+        </label>
+        <p>Toggle System (ON/OFF)</p>
+        <p id="toggleMessage"></p>
     </div>
     <div id="tempSetControl">
         <form id="setTempForm">
