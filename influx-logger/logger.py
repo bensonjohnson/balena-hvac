@@ -31,7 +31,7 @@ def log_data():
         if use_influxdb:
             climate_point = Point("climate") \
                             .tag("location", location) \
-                            .field("temperature", float(data['temperature'])) \
+                            .field("temperature", float(data['average_temperature'])) \
                             .field("humidity", float(data['humidity'])) \
                             .field("state", data['systemState']) \
                             .field("pidValue", float(data.get('pidValue', 0)))
