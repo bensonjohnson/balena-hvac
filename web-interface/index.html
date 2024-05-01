@@ -39,12 +39,12 @@
     $.ajax({
         url: '/api/toggle_system',
         method: 'POST',
-        contentType: 'application/json', // Explicitly set the content type to application/json
-        data: JSON.stringify({ state: state }), // Ensure the data is sent as a JSON string
-        dataType: 'json', // Expected response type
+        contentType: 'application/json',
+        data: JSON.stringify({ state: state }),
+        dataType: 'json',
         success: function(response) {
             $('#toggleMessage').text(response.message);
-            fetchData(); // Refresh data after toggling system
+            fetchData(); 
         },
         error: function(jqXHR, textStatus, errorThrown) {
             console.error('Error toggling system: ', textStatus, errorThrown);
