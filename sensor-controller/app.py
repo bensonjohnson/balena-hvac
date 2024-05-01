@@ -6,13 +6,28 @@ import board
 import busio
 import adafruit_sht31d
 from flask_cors import CORS
+from datetime import datetime, timedelta
+import threading
 
 
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}})
 
 # Sensor data storage
-sensor_data = []
+sensor_data = {}
+
+def store_sensor_data(sensor_name, temperature, humidity):
+    current_time = datetime.now()
+    if sensor_name not in sensor_data:
+        sensor_data[sensor_name] = []
+    sensor_data[sensor_name].append({
+        'timestamp': current_time,
+        'temperature': temperature,
+        'humidity': humidity
+    })
+
+    # Remove data older than 1 hour
+    sensor_data[sensor_name] = [data for data in sensor_data[sensor_name] if data['timestamp'] > current_time - timedelta(hours=1)]
 
 # GPIO Pins (Use BCM numbering)
 coolingRelayPin = 18 #purple
@@ -24,7 +39,7 @@ GPIO.setmode(GPIO.BCM)
 GPIO.setup(coolingRelayPin, GPIO.OUT)
 GPIO.setup(heatingRelayPin, GPIO.OUT)
 GPIO.setup(fanRelayPin, GPIO.OUT)
-time.sleep(0.1)  # Wait for 100ms to ensure GPIO states are set
+time.sleep(0.1)
 GPIO.output(coolingRelayPin, GPIO.LOW)
 GPIO.output(heatingRelayPin, GPIO.LOW)
 GPIO.output(fanRelayPin, GPIO.LOW)
@@ -34,28 +49,41 @@ i2c = busio.I2C(board.SCL, board.SDA)
 # Initialize the SHT31D sensor
 sensor = adafruit_sht31d.SHT31D(i2c)
 
+def read_sensor_data():
+    while True:
+        temperature_c = sensor.temperature
+        humidity = sensor.relative_humidity
+        temperature_f = round(temperature_c * (9.0 / 5.0) + 32, 2)
+        store_sensor_data('internal_sensor', temperature_f, humidity)
+        time.sleep(60)
+
+sensor_thread = threading.Thread(target=read_sensor_data)
+sensor_thread.daemon = True
+sensor_thread.start()
+
 # PID setup
 setpointTempF = 68.0  # Default setpoint
 pid = PID(0.5, 0.1, 0.01, setpoint=setpointTempF)
-pid.output_limits = (0, 1)  # Output will be between 0 and 1
+pid.output_limits = (0, 1) 
 
 @app.route('/getstatus', methods=['GET'])
 def get_status():
-    temperature_c = sensor.temperature
-    temperature_f = temperature_c * 9.0 / 5.0 + 32.0
-    temperature_f = round(temperature_f, 2)
-    humidity = sensor.relative_humidity
-    pid_value = pid(temperature_f)
-    system_state = adjust_relays(pid_value, temperature_f)  # Get the system state
+    average_temperature, average_humidity = get_average_sensor_data()
+    if average_temperature is None:
+        return jsonify({'error': 'No sensor data available'}), 404
+
+    pid_value = pid(average_temperature)
+    system_state = adjust_relays(pid_value, average_temperature)
     return jsonify({
-        'temperature': temperature_f,
-        'humidity': humidity,
+        'average_temperature': average_temperature,
+        'average_humidity': average_humidity,
         'setTemperature': setpointTempF,
         'pidValue': pid_value,
         'systemState': system_state,
         'Kp': pid.Kp,
         'Ki': pid.Ki,
         'Kd': pid.Kd,
+        'sensorData': sensor_data
     })
 
 @app.route('/pid', methods=['POST'])
@@ -74,15 +102,29 @@ def update_pid():
     except Exception as e:
         return jsonify({'error': f'An error occurred: {str(e)}'}), 500
 
-
-# Sensor data storage
-sensor_data = []
-
 @app.route('/submit_sensor_data', methods=['POST'])
 def submit_sensor_data():
-    data = request.get_json()
-    sensor_data.append(data)
-    return jsonify({'message': 'Sensor data received'})
+    try:
+        data = request.get_json()
+        store_sensor_data(data['sensorname'], float(data['Temperature']), float(data['Humidity']))
+        return jsonify({'message': 'Sensor data received'})
+    except KeyError as e:
+        return jsonify({'error': f'Missing key in data: {str(e)}'}), 400
+    except ValueError as e:
+        return jsonify({'error': f'Invalid value for sensor data: {str(e)}'}), 400
+    
+def get_average_sensor_data():
+    total_temp = total_hum = count = 0
+    current_time = datetime.now()
+    for readings in sensor_data.values():
+        for data in readings:
+            if data['timestamp'] > current_time - timedelta(minutes=3):
+                total_temp += data['temperature']
+                total_hum += data['humidity']
+                count += 1
+    if count == 0:
+        return None, None  # No data available
+    return total_temp / count, total_hum / count 
 
 @app.route('/process_sensors', methods=['GET'])
 def process_sensors():

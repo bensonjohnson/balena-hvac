@@ -16,7 +16,7 @@
                     'Content-Type': 'application/json',
                 },
                 success: function(data) {
-                    $('#internalTemp').text(data.temperature + ' °F');
+                    $('#average_temperature').text(data.average_temperature + ' °F');
                     $('#setTemp').text(data.setTemperature + ' °F');
                     $('#pidValue').text(data.pidValue);
                     $('#systemState').text(data.systemState);
@@ -79,7 +79,7 @@
 </head>
 <body>
     <div id="tempDisplay">
-        <p>Internal Temperature: <span id="internalTemp">Loading...</span></p>
+        <p>Average Temperature: <span id="average_temperature">Loading...</span></p>
         <p>Set Temperature: <span id="setTemp">Loading...</span></p>
         <p>PID Calculation: <span id="pidValue">Loading...</span></p>
         <p>System State: <span id="systemState">Loading...</span></p>
