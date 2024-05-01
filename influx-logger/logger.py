@@ -32,7 +32,7 @@ def log_data():
             climate_point = Point("climate") \
                             .tag("location", location) \
                             .field("temperature", float(data['average_temperature'])) \
-                            .field("humidity", float(data['humidity'])) \
+                            .field("humidity", float(data['average_humidity'])) \
                             .field("state", data['systemState']) \
                             .field("pidValue", float(data.get('pidValue', 0)))
             pid_point = Point("PID") \
