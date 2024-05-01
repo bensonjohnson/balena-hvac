@@ -126,28 +126,6 @@ def get_average_sensor_data():
         return None, None  # No data available
     return total_temp / count, total_hum / count 
 
-@app.route('/process_sensors', methods=['GET'])
-def process_sensors():
-    global setpointTempF
-    farthest_sensor = get_sensor_farthest_from_setpoint()
-    if farthest_sensor:
-        temperature_f = farthest_sensor['temperature']
-        pid_value = pid(temperature_f)
-        system_state = adjust_relays(pid_value, temperature_f)
-        return jsonify({
-            'temperature': temperature_f,
-            'humidity': farthest_sensor.get('humidity', None),
-            'setTemperature': setpointTempF,
-            'pidValue': pid_value,
-            'systemState': system_state
-        })
-    return jsonify({'message': 'No sensor data available'})
-
-def get_sensor_farthest_from_setpoint():
-    if not sensor_data:
-        return None
-    # Calculate the sensor that is farthest from the setpoint
-    return max(sensor_data, key=lambda x: abs(x['temperature'] - setpointTempF))
 
 # Manual override flag
 manual_override = False
@@ -207,16 +185,16 @@ def manual_control():
         return jsonify({'error': 'Invalid mode specified'}), 400
     return jsonify({'message': response_message}), 200
 
-def adjust_relays(pid_output, current_temp):
+def adjust_relays(pid_output, average_temperature):
     global manual_override
     if manual_override:
         return "Manual override active"
-    if current_temp < setpointTempF - pid_output:
+    if average_temperature < setpointTempF - pid_output:
         GPIO.output(coolingRelayPin, GPIO.LOW)
         GPIO.output(heatingRelayPin, GPIO.HIGH)
         GPIO.output(fanRelayPin, GPIO.HIGH)
         return "Heating"
-    elif current_temp > setpointTempF + pid_output:
+    elif average_temperature > setpointTempF + pid_output:
         GPIO.output(coolingRelayPin, GPIO.HIGH)
         GPIO.output(heatingRelayPin, GPIO.LOW)
         GPIO.output(fanRelayPin, GPIO.HIGH)
