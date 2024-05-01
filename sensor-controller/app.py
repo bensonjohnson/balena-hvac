@@ -123,7 +123,7 @@ def get_average_sensor_data():
                 total_hum += data['humidity']
                 count += 1
     if count == 0:
-        return None, None  # No data available
+        return None, None
     return total_temp / count, total_hum / count 
 
 
