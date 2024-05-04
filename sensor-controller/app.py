@@ -126,6 +126,14 @@ def get_average_sensor_data():
         return None, None
     return total_temp / count, total_hum / count 
 
+@app.route('/settemp', methods=['POST'])
+def set_temp():
+    global setpointTempF
+    new_temp = float(request.form['settemp'])
+    setpointTempF = new_temp
+    pid.setpoint = new_temp
+    return jsonify({'message': 'Set temperature updated to {} °F'.format(new_temp)})
+
 
 # Manual override flag
 manual_override = False
