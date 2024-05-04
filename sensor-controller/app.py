@@ -118,7 +118,7 @@ def get_average_sensor_data():
     current_time = datetime.now()
     for readings in sensor_data.values():
         for data in readings:
-            if data['timestamp'] > current_time - timedelta(minutes=3):
+            if data['timestamp'] > current_time - timedelta(minutes=1):
                 total_temp += data['temperature']
                 total_hum += data['humidity']
                 count += 1

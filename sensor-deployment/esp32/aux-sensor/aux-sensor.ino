@@ -4,12 +4,12 @@
 #include <HTTPClient.h>
 
 // WiFi credentials
-const char* ssid = "YOUR_SSID";
-const char* password = "YOUR_PASSWORD";
+const char* ssid = "Posix";
+const char* password = "RickSanchez";
 
 // Server URL
-const char* serverUrl = "http://your-server-url.com/submit_sensor_data";
-const char* sensorName = "default_sensor";
+const char* serverUrl = "http://10.0.0.36/api/submit_sensor_data";
+const char* sensorName = "office";
 
 // Initialize the SHT31 sensor
 Adafruit_SHT31 sht31 = Adafruit_SHT31();
