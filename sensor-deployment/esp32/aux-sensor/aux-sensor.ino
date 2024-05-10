@@ -9,7 +9,7 @@ const char* password = "RickSanchez";
 
 // Server URL
 const char* serverUrl = "http://10.0.0.36/api/submit_sensor_data";
-const char* sensorName = "office";
+const char* sensorName = "bedroom";
 
 // Initialize the SHT31 sensor
 Adafruit_SHT31 sht31 = Adafruit_SHT31();
