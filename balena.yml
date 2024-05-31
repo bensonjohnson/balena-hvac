@@ -1,6 +1,6 @@
-version: '1.1.3'
+version: '1.1.4+dev'
 type: 'sw.application'
-slug: g_benson_johnson/hvac
+slug: g_benson_johnson/hvac-test
 name: SBC-HVAC
 application:
   type: microservices

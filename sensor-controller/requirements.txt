@@ -1,6 +1,7 @@
 Flask
 flask-cors
 RPi.GPIO
-simple_pid
+#simple_pid
+scikit-fuzzy
 adafruit-circuitpython-sht31d
 git+https://github.com/benoitc/gunicorn.git

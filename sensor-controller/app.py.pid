@@ -1,5 +1,6 @@
 from flask import Flask, request, jsonify
 import RPi.GPIO as GPIO
+from simple_pid import PID
 import time
 import board
 import busio
@@ -7,9 +8,7 @@ import adafruit_sht31d
 from flask_cors import CORS
 from datetime import datetime, timedelta
 import threading
-import numpy as np
-import skfuzzy as fuzz
-from skfuzzy import control as ctrl
+
 
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}})
@@ -62,58 +61,10 @@ sensor_thread = threading.Thread(target=read_sensor_data)
 sensor_thread.daemon = True
 sensor_thread.start()
 
-# Fuzzy Logic setup
-temperature = ctrl.Antecedent(np.arange(0, 101, 1), 'temperature')
-heating = ctrl.Consequent(np.arange(0, 11, 1), 'heating')
-cooling = ctrl.Consequent(np.arange(0, 11, 1), 'cooling')
-fan = ctrl.Consequent(np.arange(0, 11, 1), 'fan')
-
-temperature['cold'] = fuzz.trimf(temperature.universe, [0, 0, 50])
-temperature['comfortable'] = fuzz.trimf(temperature.universe, [30, 50, 70])
-temperature['hot'] = fuzz.trimf(temperature.universe, [50, 100, 100])
-
-heating['low'] = fuzz.trimf(heating.universe, [0, 0, 5])
-heating['medium'] = fuzz.trimf(heating.universe, [0, 5, 10])
-heating['high'] = fuzz.trimf(heating.universe, [5, 10, 10])
-
-cooling['low'] = fuzz.trimf(cooling.universe, [0, 0, 5])
-cooling['medium'] = fuzz.trimf(cooling.universe, [0, 5, 10])
-cooling['high'] = fuzz.trimf(cooling.universe, [5, 10, 10])
-
-fan['off'] = fuzz.trimf(fan.universe, [0, 0, 5])
-fan['on'] = fuzz.trimf(fan.universe, [5, 10, 10])
-
-# Define fuzzy rules
-rule1 = ctrl.Rule(temperature['cold'], heating['high'])
-rule2 = ctrl.Rule(temperature['comfortable'], heating['low'])
-rule3 = ctrl.Rule(temperature['hot'], cooling['high'])
-rule4 = ctrl.Rule(temperature['comfortable'], cooling['low'])
-rule5 = ctrl.Rule(temperature['cold'], fan['on'])
-rule6 = ctrl.Rule(temperature['hot'], fan['on'])
-rule7 = ctrl.Rule(temperature['comfortable'], fan['off'])
-
-heating_ctrl = ctrl.ControlSystem([rule1, rule2])
-cooling_ctrl = ctrl.ControlSystem([rule3, rule4])
-fan_ctrl = ctrl.ControlSystem([rule5, rule6, rule7])
-
-heating_sim = ctrl.ControlSystemSimulation(heating_ctrl)
-cooling_sim = ctrl.ControlSystemSimulation(cooling_ctrl)
-fan_sim = ctrl.ControlSystemSimulation(fan_ctrl)
-
-def control_temperature(temp):
-    heating_sim.input['temperature'] = temp
-    cooling_sim.input['temperature'] = temp
-    fan_sim.input['temperature'] = temp
-    
-    heating_sim.compute()
-    cooling_sim.compute()
-    fan_sim.compute()
-    
-    heating_output = heating_sim.output['heating']
-    cooling_output = cooling_sim.output['cooling']
-    fan_output = fan_sim.output['fan']
-    
-    return heating_output, cooling_output, fan_output
+# PID setup
+setpointTempF = 68.0  # Default setpoint
+pid = PID(0.5, 0.1, 0.01, setpoint=setpointTempF)
+pid.output_limits = (0, 1) 
 
 @app.route('/getstatus', methods=['GET'])
 def get_status():
@@ -121,18 +72,35 @@ def get_status():
     if average_temperature is None:
         return jsonify({'error': 'No sensor data available'}), 404
 
-    heating_output, cooling_output, fan_output = control_temperature(average_temperature)
-    system_state = adjust_relays(heating_output, cooling_output, fan_output, average_temperature)
+    pid_value = pid(average_temperature)
+    system_state = adjust_relays(pid_value, average_temperature)
     return jsonify({
         'average_temperature': average_temperature,
         'average_humidity': average_humidity,
         'setTemperature': setpointTempF,
-        'heatingOutput': heating_output,
-        'coolingOutput': cooling_output,
-        'fanOutput': fan_output,
+        'pidValue': pid_value,
         'systemState': system_state,
+        'Kp': pid.Kp,
+        'Ki': pid.Ki,
+        'Kd': pid.Kd,
         'sensorData': sensor_data
     })
+
+@app.route('/pid', methods=['POST'])
+def update_pid():
+    try:
+        data = request.get_json()
+        pid.Kp = float(data['Kp'])
+        pid.Ki = float(data['Ki'])
+        pid.Kd = float(data['Kd'])
+        pid.setpoint = float(data['setpoint'])
+        return jsonify({'message': 'PID parameters updated successfully'}), 200
+    except KeyError as e:
+        return jsonify({'error': f'Missing key in data: {str(e)}'}), 400
+    except ValueError as e:
+        return jsonify({'error': f'Invalid value for PID parameters: {str(e)}'}), 400
+    except Exception as e:
+        return jsonify({'error': f'An error occurred: {str(e)}'}), 500
 
 @app.route('/submit_sensor_data', methods=['POST'])
 def submit_sensor_data():
@@ -163,7 +131,9 @@ def set_temp():
     global setpointTempF
     new_temp = float(request.form['settemp'])
     setpointTempF = new_temp
+    pid.setpoint = new_temp
     return jsonify({'message': 'Set temperature updated to {} °F'.format(new_temp)})
+
 
 # Manual override flag
 manual_override = False
@@ -176,7 +146,7 @@ def toggle_system():
 
     if state == 'on':
         manual_override = False
-        response_message = 'Fuzzy control reactivated'
+        response_message = 'PID control reactivated'
     elif state == 'off':
         manual_override = True
         GPIO.output(coolingRelayPin, GPIO.LOW)
@@ -223,27 +193,24 @@ def manual_control():
         return jsonify({'error': 'Invalid mode specified'}), 400
     return jsonify({'message': response_message}), 200
 
-def adjust_relays(heating_output, cooling_output, fan_output, average_temperature):
+def adjust_relays(pid_output, average_temperature):
     global manual_override
     if manual_override:
         return "Manual override active"
-    if fan_output > 5:
-        GPIO.output(fanRelayPin, GPIO.HIGH)
-    else:
-        GPIO.output(fanRelayPin, GPIO.LOW)
-
-    if heating_output > cooling_output:
+    if average_temperature < setpointTempF - pid_output:
         GPIO.output(coolingRelayPin, GPIO.LOW)
         GPIO.output(heatingRelayPin, GPIO.HIGH)
+        GPIO.output(fanRelayPin, GPIO.HIGH)
         return "Heating"
-    elif cooling_output > heating_output:
+    elif average_temperature > setpointTempF + pid_output:
         GPIO.output(coolingRelayPin, GPIO.HIGH)
         GPIO.output(heatingRelayPin, GPIO.LOW)
+        GPIO.output(fanRelayPin, GPIO.HIGH)
         return "Cooling"
     else:
         GPIO.output(coolingRelayPin, GPIO.LOW)
         GPIO.output(heatingRelayPin, GPIO.LOW)
+        GPIO.output(fanRelayPin, GPIO.LOW)
         return "Off"
-
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
