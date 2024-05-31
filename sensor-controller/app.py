@@ -63,7 +63,7 @@ sensor_thread.start()
 
 # PID setup
 setpointTempF = 68.0  # Default setpoint
-pid = PID(0.006, 0.0012, 0.0075, setpoint=setpointTempF)
+pid = PID(0.5, 0.1, 0.01, setpoint=setpointTempF)
 pid.output_limits = (0, 1) 
 
 @app.route('/getstatus', methods=['GET'])
