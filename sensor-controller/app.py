@@ -62,7 +62,7 @@ sensor_thread.daemon = True
 sensor_thread.start()
 
 # PID setup
-setpointTempF = 68.0  # Default setpoint
+setpointTempF = 70.0  # Default setpoint
 pid = PID(0.5, 0.1, 0.01, setpoint=setpointTempF)
 pid.output_limits = (0, 1) 
 
