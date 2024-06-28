@@ -61,6 +61,12 @@ span {
 }
 
 /* Custom styles for toggle switch */
+#controlPanel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
 .switch {
   position: relative;
   display: inline-block;
