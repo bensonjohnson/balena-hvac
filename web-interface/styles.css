@@ -1,63 +1,63 @@
 /* General body styles */
 body {
-    font-family: 'Arial', sans-serif;
-    background: url(/background.jpg) center center/cover no-repeat;
-    color: #333;
-    margin: 0;
-    padding: 20px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 100vh;
-    box-sizing: border-box;
+  font-family: 'Arial', sans-serif;
+  background: url(/background.jpg) center center/cover no-repeat;
+  color: #333;
+  margin: 0;
+  padding: 20px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  box-sizing: border-box;
 }
 
 h1 {
-    color: #0d6efd;
+  color: #0d6efd;
 }
 
 #tempDisplay, #tempSetControl, #controlPanel {
-    background-color: #ffffff;
-    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-    padding: 20px;
-    border-radius: 10px;
-    width: 300px;
-    margin: 20px;
-    text-align: center;
+  background-color: #ffffff;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+  padding: 20px;
+  border-radius: 10px;
+  width: 300px;
+  margin: 20px;
+  text-align: center;
 }
 
 p {
-    margin: 10px 0;
-    font-size: 16px;
-    color: #555;
+  margin: 10px 0;
+  font-size: 16px;
+  color: #555;
 }
 
 span {
-    display: block;
-    font-size: 24px;
-    color: #333;
-    margin-top: 5px;
+  display: block;
+  font-size: 24px;
+  color: #333;
+  margin-top: 5px;
 }
 
 /* Style for the input form and toggle switch */
 #tempSetControl input[type="number"],
 #tempSetControl input[type="submit"],
 #controlPanel .switch input {
-    padding: 10px;
-    margin-top: 10px;
-    border-radius: 5px;
-    border: 1px solid #ccc;
-    width: calc(100% - 24px);
+  padding: 10px;
+  margin-top: 10px;
+  border-radius: 5px;
+  border: 1px solid #ccc;
+  width: calc(100% - 24px);
 }
 
 #tempSetControl input[type="submit"] {
-    background-color: #0d6efd;
-    color: white;
-    cursor: pointer;
+  background-color: #0d6efd;
+  color: white;
+  cursor: pointer;
 }
 
 #tempSetControl input[type="submit"]:hover {
-    background-color: #0a58ca;
+  background-color: #0a58ca;
 }
 
 /* Custom styles for toggle switch */
@@ -66,6 +66,7 @@ span {
   display: inline-block;
   width: 60px;
   height: 34px;
+  margin: 0 auto; /* Center the switch */
 }
 
 .switch input { 
@@ -112,7 +113,7 @@ input:checked + .slider:before {
 
 /* Responsive adjustments */
 @media (max-width: 600px) {
-    body {
-        flex-direction: column;
-    }
+  body {
+      flex-direction: column;
+  }
 }
