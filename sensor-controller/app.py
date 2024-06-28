@@ -8,7 +8,7 @@ import adafruit_sht31d
 from flask_cors import CORS
 from datetime import datetime, timedelta
 import threading
-
+import redis
 
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}})
@@ -28,6 +28,9 @@ def store_sensor_data(sensor_name, temperature, humidity):
 
     # Remove data older than 1 hour
     sensor_data[sensor_name] = [data for data in sensor_data[sensor_name] if data['timestamp'] > current_time - timedelta(hours=1)]
+
+# Initialize Redis connection
+redis_client = redis.StrictRedis(host='redis', port=6379, db=0)
 
 # GPIO Pins (Use BCM numbering)
 coolingRelayPin = 18 #purple
@@ -61,10 +64,12 @@ sensor_thread = threading.Thread(target=read_sensor_data)
 sensor_thread.daemon = True
 sensor_thread.start()
 
+# Retrieve the set temperature from Redis or use default
+setpointTempF = float(redis_client.get('set_temperature') or 70.0)
+
 # PID setup
-setpointTempF = 70.0  # Default setpoint
 pid = PID(0.5, 0.1, 0.01, setpoint=setpointTempF)
-pid.output_limits = (0, 1) 
+pid.output_limits = (0, 1)
 
 @app.route('/getstatus', methods=['GET'])
 def get_status():
@@ -94,6 +99,7 @@ def update_pid():
         pid.Ki = float(data['Ki'])
         pid.Kd = float(data['Kd'])
         pid.setpoint = float(data['setpoint'])
+        redis_client.set('set_temperature', pid.setpoint)
         return jsonify({'message': 'PID parameters updated successfully'}), 200
     except KeyError as e:
         return jsonify({'error': f'Missing key in data: {str(e)}'}), 400
@@ -112,7 +118,7 @@ def submit_sensor_data():
         return jsonify({'error': f'Missing key in data: {str(e)}'}), 400
     except ValueError as e:
         return jsonify({'error': f'Invalid value for sensor data: {str(e)}'}), 400
-    
+
 def get_average_sensor_data():
     total_temp = total_hum = count = 0
     current_time = datetime.now()
@@ -124,7 +130,7 @@ def get_average_sensor_data():
                 count += 1
     if count == 0:
         return None, None
-    return total_temp / count, total_hum / count 
+    return total_temp / count, total_hum / count
 
 @app.route('/settemp', methods=['POST'])
 def set_temp():
@@ -132,8 +138,8 @@ def set_temp():
     new_temp = float(request.form['settemp'])
     setpointTempF = new_temp
     pid.setpoint = new_temp
+    redis_client.set('set_temperature', new_temp)
     return jsonify({'message': 'Set temperature updated to {} °F'.format(new_temp)})
-
 
 # Manual override flag
 manual_override = False
@@ -155,7 +161,7 @@ def toggle_system():
         response_message = 'System turned off, manual override activated'
     else:
         return jsonify({'error': 'Invalid state specified'}), 400
-    
+
     return jsonify({'message': response_message}), 200
 
 @app.route('/off', methods=['POST'])
@@ -212,5 +218,6 @@ def adjust_relays(pid_output, average_temperature):
         GPIO.output(heatingRelayPin, GPIO.LOW)
         GPIO.output(fanRelayPin, GPIO.LOW)
         return "Off"
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)

@@ -2,6 +2,7 @@
 #include <Adafruit_SHT31.h>
 #include <WiFi.h>
 #include <HTTPClient.h>
+#include <ArduinoOTA.h>
 
 // WiFi credentials
 const char* ssid = "Posix";
@@ -9,7 +10,7 @@ const char* password = "RickSanchez";
 
 // Server URL
 const char* serverUrl = "http://10.0.0.36/api/submit_sensor_data";
-const char* sensorName = "bedroom";
+const char* sensorName = "office";
 
 // Initialize the SHT31 sensor
 Adafruit_SHT31 sht31 = Adafruit_SHT31();
@@ -31,9 +32,47 @@ void setup() {
     Serial.println("Couldn't find SHT31");
     while (1) delay(1);
   }
+
+  // Initialize OTA
+  ArduinoOTA.onStart([]() {
+    String type;
+    if (ArduinoOTA.getCommand() == U_FLASH) {
+      type = "sketch";
+    } else { // U_SPIFFS
+      type = "filesystem";
+    }
+    Serial.println("Start updating " + type);
+  });
+
+  ArduinoOTA.onEnd([]() {
+    Serial.println("\nEnd");
+  });
+
+  ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
+    Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
+  });
+
+  ArduinoOTA.onError([](ota_error_t error) {
+    Serial.printf("Error[%u]: ", error);
+    if (error == OTA_AUTH_ERROR) {
+      Serial.println("Auth Failed");
+    } else if (error == OTA_BEGIN_ERROR) {
+      Serial.println("Begin Failed");
+    } else if (error == OTA_CONNECT_ERROR) {
+      Serial.println("Connect Failed");
+    } else if (error == OTA_RECEIVE_ERROR) {
+      Serial.println("Receive Failed");
+    } else if (error == OTA_END_ERROR) {
+      Serial.println("End Failed");
+    }
+  });
+
+  ArduinoOTA.begin();
 }
 
 void loop() {
+  ArduinoOTA.handle();  // Handle OTA updates
+
   float t = sht31.readTemperature();
   float h = sht31.readHumidity();
 
@@ -68,4 +107,3 @@ void loop() {
 
   delay(15000);  // Delay between readings
 }
-

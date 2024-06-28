@@ -1,4 +1,4 @@
-version: '1.1.4'
+version: '1.1.5'
 type: 'sw.application'
 slug: g_benson_johnson/hvac
 name: SBC-HVAC
@@ -13,3 +13,8 @@ services:
     build: ./nginx-proxy
   - name: influx-logger
     build: ./influx-logger
+  - name: redis
+    image: redis:latest
+    restart: always
+    volumes:
+      - redis-data:/data

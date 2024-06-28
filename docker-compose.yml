@@ -29,3 +29,11 @@ services:
       - INFLUXDB_ORG=YourOrgName
       - INFLUXDB_BUCKET=YourBucketName
       - LOCATION=thermostat
+  redis:
+    image: redis:latest
+    restart: always
+    volumes:
+      - redis-data:/data
+
+volumes:
+  redis-data:

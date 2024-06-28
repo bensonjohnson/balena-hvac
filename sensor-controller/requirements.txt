@@ -3,4 +3,5 @@ flask-cors
 RPi.GPIO
 simple_pid
 adafruit-circuitpython-sht31d
+redis
 git+https://github.com/benoitc/gunicorn.git
