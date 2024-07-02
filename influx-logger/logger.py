@@ -4,6 +4,7 @@ import time
 import os
 import urllib3
 from urllib3.exceptions import InsecureRequestWarning
+from datetime import datetime
 
 # Suppress InsecureRequestWarning
 urllib3.disable_warnings(InsecureRequestWarning)
@@ -21,6 +22,12 @@ use_influxdb = os.getenv('USE_INFLUXDB', 'false').lower() == 'true'
 if use_influxdb:
     client = InfluxDBClient(url=influx_url, token=influx_token, org=influx_org, verify_ssl=False)
     write_api = client.write_api()
+
+def convert_timestamp(timestamp_str):
+    # Convert the string timestamp to a datetime object
+    dt = datetime.strptime(timestamp_str, "%a, %d %b %Y %H:%M:%S %Z")
+    # Convert the datetime object to ISO format string without timezone
+    return dt.isoformat()
 
 def log_data():
     response = requests.get(api_url, verify=False)  # Added verify=False to disable SSL verification
@@ -56,7 +63,7 @@ def log_data():
                                    .tag("sensor", sensor) \
                                    .field("temperature", float(reading['temperature'])) \
                                    .field("humidity", float(reading['humidity'])) \
-                                   .time(reading['timestamp'])
+                                   .time(convert_timestamp(reading['timestamp']))
                     points.append(sensor_point)
             
             # Write all points as a batch
@@ -70,3 +77,4 @@ if __name__ == '__main__':
     while True:
         log_data()
         time.sleep(60)  # Log every 60 seconds
+
