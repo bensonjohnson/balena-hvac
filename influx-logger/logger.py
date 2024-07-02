@@ -17,8 +17,6 @@ influx_bucket = os.getenv('INFLUXDB_BUCKET', 'YourBucketName')
 location = os.getenv('LOCATION', 'thermostat')
 use_influxdb = os.getenv('USE_INFLUXDB', 'false').lower() == 'true'
 
-
-
 # Set up InfluxDB connection only if use_influxdb is True
 if use_influxdb:
     client = InfluxDBClient(url=influx_url, token=influx_token, org=influx_org, verify_ssl=False)
@@ -29,12 +27,17 @@ def log_data():
     if response.status_code == 200:
         data = response.json()
         if use_influxdb:
+            points = []
+            
+            # Create points for average data
             climate_point = Point("climate") \
                             .tag("location", location) \
                             .field("temperature", float(data['average_temperature'])) \
                             .field("humidity", float(data['average_humidity'])) \
                             .field("state", data['systemState']) \
                             .field("pidValue", float(data.get('pidValue', 0)))
+            points.append(climate_point)
+            
             pid_point = Point("PID") \
                         .tag("location", location) \
                         .field("setpoint", float(data['setTemperature'])) \
@@ -43,8 +46,21 @@ def log_data():
                         .field("Kp", float(data['Kp'])) \
                         .field("Ki", float(data['Ki'])) \
                         .field("Kd", float(data['Kd']))
-            # Write points as a batch
-            write_api.write(bucket=influx_bucket, org=influx_org, record=[climate_point, pid_point])
+            points.append(pid_point)
+            
+            # Create points for each individual sensor
+            for sensor, readings in data.get('sensorData', {}).items():
+                for reading in readings:
+                    sensor_point = Point("sensor_data") \
+                                   .tag("location", location) \
+                                   .tag("sensor", sensor) \
+                                   .field("temperature", float(reading['temperature'])) \
+                                   .field("humidity", float(reading['humidity'])) \
+                                   .time(reading['timestamp'])
+                    points.append(sensor_point)
+            
+            # Write all points as a batch
+            write_api.write(bucket=influx_bucket, org=influx_org, record=points)
         else:
             print("InfluxDB logging is disabled. Data:", data)
     else:
