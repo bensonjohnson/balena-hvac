@@ -199,10 +199,23 @@ def manual_control():
         return jsonify({'error': 'Invalid mode specified'}), 400
     return jsonify({'message': response_message}), 200
 
+def is_summer():
+    current_month = datetime.now().month
+    # summer is June, July, and August
+    return current_month in [6, 7, 8]
+
 def adjust_relays(pid_output, average_temperature):
     global manual_override
     if manual_override:
         return "Manual override active"
+
+    # If it's summer and the temperature is below setpoint minus some tolerance, do nothing
+    if is_summer() and average_temperature < setpointTempF:
+        GPIO.output(coolingRelayPin, GPIO.LOW)
+        GPIO.output(heatingRelayPin, GPIO.LOW)
+        GPIO.output(fanRelayPin, GPIO.LOW)
+        return "Summer mode: No heating"
+
     if average_temperature < setpointTempF - pid_output:
         GPIO.output(coolingRelayPin, GPIO.LOW)
         GPIO.output(heatingRelayPin, GPIO.HIGH)
