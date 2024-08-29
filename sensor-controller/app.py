@@ -16,6 +16,11 @@ CORS(app, resources={r"/*": {"origins": "*"}})
 # Sensor data storage
 sensor_data = {}
 
+# Mode can be 'average' or a specific sensor name
+selected_mode = 'average'
+selected_sensor_name = None
+
+
 def store_sensor_data(sensor_name, temperature, humidity):
     current_time = datetime.now()
     if sensor_name not in sensor_data:
@@ -73,9 +78,13 @@ pid.output_limits = (0, 1)
 
 @app.route('/getstatus', methods=['GET'])
 def get_status():
-    average_temperature, average_humidity = get_average_sensor_data()
+    if selected_mode == 'average':
+        average_temperature, average_humidity = get_sensor_data('average')
+    else:
+        average_temperature, average_humidity = get_sensor_data('specific', selected_sensor_name)
+
     if average_temperature is None:
-        return jsonify({'error': 'No sensor data available'}), 404
+        return jsonify({'error': 'No sensor data available for the selected mode'}), 404
 
     pid_value = pid(average_temperature)
     system_state = adjust_relays(pid_value, average_temperature)
@@ -88,8 +97,11 @@ def get_status():
         'Kp': pid.Kp,
         'Ki': pid.Ki,
         'Kd': pid.Kd,
-        'sensorData': sensor_data
+        'sensorData': sensor_data,
+        'selectedMode': selected_mode,
+        'selectedSensor': selected_sensor_name
     })
+
 
 @app.route('/pid', methods=['POST'])
 def update_pid():
@@ -118,19 +130,49 @@ def submit_sensor_data():
         return jsonify({'error': f'Missing key in data: {str(e)}'}), 400
     except ValueError as e:
         return jsonify({'error': f'Invalid value for sensor data: {str(e)}'}), 400
+    
+@app.route('/set_mode', methods=['POST'])
+def set_mode():
+    global selected_mode, selected_sensor_name
+    data = request.get_json()
+    new_mode = data.get('mode', 'average').lower()
+    sensor_name = data.get('sensor_name')
 
-def get_average_sensor_data():
+    if new_mode == 'average':
+        selected_mode = 'average'
+        selected_sensor_name = None
+        return jsonify({'message': 'Mode set to average'}), 200
+    elif sensor_name in sensor_data:
+        selected_mode = 'specific'
+        selected_sensor_name = sensor_name
+        return jsonify({'message': f'Mode set to follow sensor {sensor_name}'}), 200
+    else:
+        return jsonify({'error': 'Invalid mode or sensor name'}), 400
+
+
+def get_sensor_data(mode, sensor_name=None):
     total_temp = total_hum = count = 0
     current_time = datetime.now()
-    for readings in sensor_data.values():
-        for data in readings:
-            if data['timestamp'] > current_time - timedelta(minutes=1):
-                total_temp += data['temperature']
-                total_hum += data['humidity']
-                count += 1
+
+    if mode == 'average':
+        for readings in sensor_data.values():
+            for data in readings:
+                if data['timestamp'] > current_time - timedelta(minutes=1):
+                    total_temp += data['temperature']
+                    total_hum += data['humidity']
+                    count += 1
+    else:
+        if sensor_name in sensor_data:
+            for data in sensor_data[sensor_name]:
+                if data['timestamp'] > current_time - timedelta(minutes=1):
+                    total_temp += data['temperature']
+                    total_hum += data['humidity']
+                    count += 1
+
     if count == 0:
         return None, None
     return total_temp / count, total_hum / count
+
 
 @app.route('/settemp', methods=['POST'])
 def set_temp():

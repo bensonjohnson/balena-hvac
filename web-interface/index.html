@@ -7,6 +7,9 @@
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
     <script>
     $(document).ready(function() {
+        let currentMode = 'average';
+        let currentSensor = null;
+
         // Function to fetch data and update UI
         function fetchData() {
             $.ajax({
@@ -16,15 +19,58 @@
                     'Content-Type': 'application/json',
                 },
                 success: function(data) {
-                    $('#average_temperature').text(data.average_temperature + ' °F');
                     $('#setTemp').text(data.setTemperature + ' °F');
                     $('#pidValue').text(data.pidValue);
                     $('#systemState').text(data.systemState);
+                    populateSensorDropdown(data.sensorData);
+                    updateTemperatureDisplay(data.average_temperature);
                 },
                 error: function(jqXHR, textStatus, errorThrown) {
                     console.error('Error fetching data: ', textStatus, errorThrown);
                 }
             });
+        }
+
+        // Function to populate the sensor dropdown
+        function populateSensorDropdown(sensorData) {
+            var sensorSelect = $('#sensor-select');
+            sensorSelect.empty();
+            sensorSelect.append('<option value="average">Average</option>');
+            $.each(sensorData, function(sensorName) {
+                sensorSelect.append('<option value="' + sensorName + '">' + sensorName + '</option>');
+            });
+            if (currentMode === 'specific' && currentSensor) {
+                sensorSelect.val(currentSensor);
+            } else {
+                sensorSelect.val('average');
+            }
+        }
+
+        // Function to set the mode (average or specific sensor)
+        function setMode(mode, sensorName) {
+            $.ajax({
+                url: '/api/set_mode',
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({ mode: mode, sensor_name: sensorName }),
+                success: function(response) {
+                    $('#statusMessage').text(response.message);
+                    currentMode = mode;
+                    currentSensor = sensorName;
+                    fetchData(); // Refresh data after setting the mode
+                },
+                error: function(jqXHR, textStatus, errorThrown) {
+                    console.error('Error setting mode: ', textStatus, errorThrown);
+                    $('#statusMessage').text('Error: ' + textStatus + ' ' + errorThrown);
+                }
+            });
+        }
+
+        // Function to update the temperature display and label
+        function updateTemperatureDisplay(temperature) {
+            let label = currentMode === 'average' ? 'Average Temperature' : currentSensor + ' Temperature';
+            $('#temperature-label').text(label);
+            $('#average_temperature').text(temperature + ' °F');
         }
 
         // Function to set new temperature
@@ -36,22 +82,22 @@
         }
 
         function toggleSystem(state) {
-    $.ajax({
-        url: '/api/toggle_system',
-        method: 'POST',
-        contentType: 'application/json',
-        data: JSON.stringify({ state: state }),
-        dataType: 'json',
-        success: function(response) {
-            $('#toggleMessage').text(response.message);
-            fetchData(); 
-        },
-        error: function(jqXHR, textStatus, errorThrown) {
-            console.error('Error toggling system: ', textStatus, errorThrown);
-            $('#toggleMessage').text('Error: ' + textStatus + ' ' + errorThrown);
+            $.ajax({
+                url: '/api/toggle_system',
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({ state: state }),
+                dataType: 'json',
+                success: function(response) {
+                    $('#toggleMessage').text(response.message);
+                    fetchData(); 
+                },
+                error: function(jqXHR, textStatus, errorThrown) {
+                    console.error('Error toggling system: ', textStatus, errorThrown);
+                    $('#toggleMessage').text('Error: ' + textStatus + ' ' + errorThrown);
+                }
+            });
         }
-    });
-}
 
         // Fetch initial data
         fetchData();
@@ -74,16 +120,28 @@
                 toggleSystem('off');
             }
         });
+
+        // Event listener for sensor dropdown
+        $('#sensor-select').change(function() {
+            var selectedValue = $(this).val();
+            if (selectedValue === 'average') {
+                setMode('average', null);
+            } else {
+                setMode('specific', selectedValue);
+            }
+        });
     });
     </script>
 </head>
 <body>
     <div id="tempDisplay">
-        <p>Average Temperature: <span id="average_temperature">Loading...</span></p>
+        <p id="temperature-label">Average Temperature: </p>
+        <p><span id="average_temperature">Loading...</span></p>
         <p>Set Temperature: <span id="setTemp">Loading...</span></p>
         <p>PID Calculation: <span id="pidValue">Loading...</span></p>
         <p>System State: <span id="systemState">Loading...</span></p>
     </div>
+
     <div id="controlPanel">
         <label class="switch">
             <input type="checkbox" id="toggleSwitch">
@@ -92,6 +150,14 @@
         <p>Toggle System (ON/OFF)</p>
         <p id="toggleMessage"></p>
     </div>
+
+    <div id="sensorControl">
+        <label for="sensor-select">Select Sensor:</label>
+        <select id="sensor-select">
+            <option value="average">Average</option>
+        </select>
+    </div>
+
     <div id="tempSetControl">
         <form id="setTempForm">
             <label for="newTemp">Set New Temperature (°F):</label>

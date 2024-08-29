@@ -10,19 +10,20 @@ body {
   align-items: center;
   height: 100vh;
   box-sizing: border-box;
+  flex-direction: column; /* Stack the main sections vertically */
 }
 
 h1 {
   color: #0d6efd;
 }
 
-#tempDisplay, #tempSetControl, #controlPanel {
+#tempDisplay, #tempSetControl, #controlPanel, #sensorControl {
   background-color: #ffffff;
   box-shadow: 0 4px 8px rgba(0,0,0,0.1);
   padding: 20px;
   border-radius: 10px;
   width: 300px;
-  margin: 20px;
+  margin: 10px; /* Smaller margin for vertical spacing */
   text-align: center;
 }
 
@@ -42,7 +43,8 @@ span {
 /* Style for the input form and toggle switch */
 #tempSetControl input[type="number"],
 #tempSetControl input[type="submit"],
-#controlPanel .switch input {
+#controlPanel .switch input,
+#sensor-select {
   padding: 10px;
   margin-top: 10px;
   border-radius: 5px;
@@ -58,6 +60,24 @@ span {
 
 #tempSetControl input[type="submit"]:hover {
   background-color: #0a58ca;
+}
+
+/* Custom styles for the dropdown */
+#sensorControl {
+  margin-top: 20px;
+}
+
+#sensor-select {
+  background-color: #f8f9fa;
+  color: #333;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+#sensor-select:focus {
+  border-color: #0d6efd;
+  outline: none;
+  box-shadow: 0 0 5px rgba(13, 110, 253, 0.5);
 }
 
 /* Custom styles for toggle switch */
