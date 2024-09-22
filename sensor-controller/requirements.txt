@@ -4,5 +4,4 @@ RPi.GPIO
 simple_pid
 adafruit-circuitpython-sht31d
 redis
-adafruit-blinka
 git+https://github.com/benoitc/gunicorn.git
