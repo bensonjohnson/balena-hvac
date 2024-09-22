@@ -1,4 +1,4 @@
-version: '1.3.4'
+version: '1.3.5'
 type: 'sw.application'
 slug: g_benson_johnson/hvac
 name: SBC-HVAC
@@ -18,8 +18,3 @@ services:
     restart: always
     volumes:
       - redis-data:/data
-  - name: esphome
-    image:  ghcr.io/esphome/esphome
-    restart: always
-    volumes:
-      - esphome-data:/config
