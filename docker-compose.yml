@@ -38,7 +38,7 @@ services:
     image: ghcr.io/esphome/esphome
     restart: always
     ports:
-      -  "80:80"
+      -  "6052:6052"
     volumes:
       -  esphome-data:/config
 
