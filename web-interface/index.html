@@ -1,185 +1,170 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Thermostat Control Panel</title>
     <meta charset="UTF-8">
-    <!-- Link to your external CSS file -->
+    <title>SBC-HVAC</title>
     <link rel="stylesheet" type="text/css" href="styles.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script>
+    $(document).ready(function() {
+        let currentMode = 'average';
+        let currentSensor = null;
+
+        // Function to fetch data and update UI
+        function fetchData() {
+            $.ajax({
+                url: '/api/getstatus',
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                success: function(data) {
+                    $('#setTemp').text(data.setTemperature + ' °F');
+                    $('#pidValue').text(data.pidValue);
+                    $('#systemState').text(data.systemState);
+                    populateSensorDropdown(data.sensorData);
+                    updateTemperatureDisplay(data.average_temperature);
+                },
+                error: function(jqXHR, textStatus, errorThrown) {
+                    console.error('Error fetching data: ', textStatus, errorThrown);
+                }
+            });
+        }
+
+        // Function to populate the sensor dropdown
+        function populateSensorDropdown(sensorData) {
+            var sensorSelect = $('#sensor-select');
+            sensorSelect.empty();
+            sensorSelect.append('<option value="average">Average</option>');
+            $.each(sensorData, function(sensorName) {
+                sensorSelect.append('<option value="' + sensorName + '">' + sensorName + '</option>');
+            });
+            if (currentMode === 'specific' && currentSensor) {
+                sensorSelect.val(currentSensor);
+            } else {
+                sensorSelect.val('average');
+            }
+        }
+
+        // Function to set the mode (average or specific sensor)
+        function setMode(mode, sensorName) {
+            $.ajax({
+                url: '/api/set_mode',
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({ mode: mode, sensor_name: sensorName }),
+                success: function(response) {
+                    $('#statusMessage').text(response.message);
+                    currentMode = mode;
+                    currentSensor = sensorName;
+                    fetchData(); // Refresh data after setting the mode
+                },
+                error: function(jqXHR, textStatus, errorThrown) {
+                    console.error('Error setting mode: ', textStatus, errorThrown);
+                    $('#statusMessage').text('Error: ' + textStatus + ' ' + errorThrown);
+                }
+            });
+        }
+
+        // Function to update the temperature display and label
+        function updateTemperatureDisplay(temperature) {
+            let label = currentMode === 'average' ? 'Average Temperature' : currentSensor + ' Temperature';
+            $('#temperature-label').text(label);
+            $('#average_temperature').text(temperature + ' °F');
+        }
+
+        // Function to set new temperature
+        function setTemperature(newTemp) {
+            $.post('/api/settemp', { settemp: newTemp }, function(response) {
+                $('#statusMessage').text(response.message);
+                fetchData(); // Refresh data after setting new temp
+            }, 'json');
+        }
+
+        function toggleSystem(state) {
+            $.ajax({
+                url: '/api/toggle_system',
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({ state: state }),
+                dataType: 'json',
+                success: function(response) {
+                    $('#toggleMessage').text(response.message);
+                    fetchData(); 
+                },
+                error: function(jqXHR, textStatus, errorThrown) {
+                    console.error('Error toggling system: ', textStatus, errorThrown);
+                    $('#toggleMessage').text('Error: ' + textStatus + ' ' + errorThrown);
+                }
+            });
+        }
+
+        // Fetch initial data
+        fetchData();
+
+        // Set interval for fetching data every 5 seconds
+        setInterval(fetchData, 5000);
+
+        // Event listener for set temperature form
+        $('#setTempForm').submit(function(event) {
+            event.preventDefault();
+            var newTemp = $('#newTemp').val();
+            setTemperature(newTemp);
+        });
+
+        // Event listener for toggle switch
+        $('#toggleSwitch').change(function() {
+            if(this.checked) {
+                toggleSystem('on');
+            } else {
+                toggleSystem('off');
+            }
+        });
+
+        // Event listener for sensor dropdown
+        $('#sensor-select').change(function() {
+            var selectedValue = $(this).val();
+            if (selectedValue === 'average') {
+                setMode('average', null);
+            } else {
+                setMode('specific', selectedValue);
+            }
+        });
+    });
+    </script>
 </head>
 <body>
-    <!-- Temperature Display Section -->
     <div id="tempDisplay">
-        <h1>Current Temperature</h1>
-        <p>Temperature: <span id="current-temperature">--</span>°F</p>
-        <p>Humidity: <span id="current-humidity">--</span>%</p>
-        <p>System State: <span id="system-state">--</span></p>
+        <p id="temperature-label">Average Temperature: </p>
+        <p><span id="average_temperature">Loading...</span></p>
+        <p>Set Temperature: <span id="setTemp">Loading...</span></p>
+        <p>PID Calculation: <span id="pidValue">Loading...</span></p>
+        <p>System State: <span id="systemState">Loading...</span></p>
     </div>
 
-    <!-- Temperature Set Control Section -->
-    <div id="tempSetControl">
-        <h1>Set Temperature</h1>
-        <form id="set-temp-form">
-            <input type="number" id="settemp" name="settemp" step="0.1" required placeholder="Enter temperature">
-            <input type="submit" value="Set Temperature">
-        </form>
-    </div>
-
-    <!-- Control Panel Section -->
     <div id="controlPanel">
-        <h1>System Control</h1>
         <label class="switch">
-            <input type="checkbox" id="system-toggle" checked>
-            <span class="slider"></span>
+            <input type="checkbox" id="toggleSwitch">
+            <span class="slider round"></span>
         </label>
-        <p>Toggle System On/Off</p>
+        <p>Toggle System (ON/OFF)</p>
+        <p id="toggleMessage"></p>
     </div>
 
-    <!-- Sensor Control Section -->
     <div id="sensorControl">
-        <h1>Select Sensor Mode</h1>
+        <label for="sensor-select">Select Sensor:</label>
         <select id="sensor-select">
             <option value="average">Average</option>
-            <!-- Sensor options will be populated dynamically -->
         </select>
     </div>
 
-    <!-- Status Message -->
-    <div class="status-message" id="status-message"></div>
-
-    <!-- Include JavaScript -->
-    <script>
-        // URL of your Flask API
-        const apiUrl = 'http://your-api-url'; // Replace with your actual API base URL
-
-        // Function to update the current status
-        function updateStatus() {
-            fetch(`${apiUrl}/getstatus`)
-                .then(response => response.json())
-                .then(data => {
-                    document.getElementById('current-temperature').textContent = data.average_temperature.toFixed(1);
-                    document.getElementById('current-humidity').textContent = data.average_humidity.toFixed(1);
-                    document.getElementById('system-state').textContent = data.systemState;
-                })
-                .catch(error => {
-                    console.error('Error fetching status:', error);
-                });
-        }
-
-        // Event listener for the set temperature form
-        document.getElementById('set-temp-form').addEventListener('submit', function(event) {
-            event.preventDefault();
-            const settempInput = document.getElementById('settemp');
-            const newTemp = parseFloat(settempInput.value);
-
-            if (isNaN(newTemp)) {
-                displayStatusMessage('Please enter a valid temperature.', true);
-                return;
-            }
-
-            fetch(`${apiUrl}/settemp`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ settemp: newTemp })
-            })
-            .then(response => {
-                if (!response.ok) {
-                    return response.json().then(errorData => {
-                        throw new Error(errorData.error || 'An error occurred while setting the temperature.');
-                    });
-                }
-                return response.json();
-            })
-            .then(responseData => {
-                displayStatusMessage(responseData.message, false);
-                settempInput.value = '';
-                updateStatus(); // Update the status after setting the temperature
-            })
-            .catch(error => {
-                displayStatusMessage(error.message, true);
-            });
-        });
-
-        // Event listener for the system toggle switch
-        document.getElementById('system-toggle').addEventListener('change', function(event) {
-            const state = this.checked ? 'on' : 'off';
-
-            fetch(`${apiUrl}/toggle_system`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ state: state })
-            })
-            .then(response => response.json())
-            .then(data => {
-                displayStatusMessage(data.message, false);
-                updateStatus();
-            })
-            .catch(error => {
-                displayStatusMessage('Error toggling system: ' + error.message, true);
-            });
-        });
-
-        // Function to populate the sensor select options
-        function populateSensorOptions() {
-            fetch(`${apiUrl}/getstatus`)
-                .then(response => response.json())
-                .then(data => {
-                    const sensorSelect = document.getElementById('sensor-select');
-                    // Clear existing options except 'Average'
-                    sensorSelect.innerHTML = '<option value="average">Average</option>';
-
-                    const sensors = Object.keys(data.sensorData);
-                    sensors.forEach(sensor => {
-                        const option = document.createElement('option');
-                        option.value = sensor;
-                        option.textContent = sensor;
-                        sensorSelect.appendChild(option);
-                    });
-                })
-                .catch(error => {
-                    console.error('Error fetching sensors:', error);
-                });
-        }
-
-        // Event listener for the sensor mode select
-        document.getElementById('sensor-select').addEventListener('change', function(event) {
-            const mode = this.value === 'average' ? 'average' : 'specific';
-            const sensor_name = this.value !== 'average' ? this.value : null;
-
-            fetch(`${apiUrl}/set_mode`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ mode: mode, sensor_name: sensor_name })
-            })
-            .then(response => response.json())
-            .then(data => {
-                displayStatusMessage(data.message, false);
-                updateStatus();
-            })
-            .catch(error => {
-                displayStatusMessage('Error setting mode: ' + error.message, true);
-            });
-        });
-
-        // Function to display status messages
-        function displayStatusMessage(message, isError) {
-            const statusMessageDiv = document.getElementById('status-message');
-            statusMessageDiv.textContent = message;
-            statusMessageDiv.style.color = isError ? 'red' : 'green';
-        }
-
-        // Initial setup
-        document.addEventListener('DOMContentLoaded', function() {
-            updateStatus();
-            populateSensorOptions();
-            // Refresh the status every 60 seconds
-            setInterval(updateStatus, 60000);
-        });
-    </script>
+    <div id="tempSetControl">
+        <form id="setTempForm">
+            <label for="newTemp">Set New Temperature (°F):</label>
+            <input type="number" id="newTemp" name="newtemp" step="0.1">
+            <input type="submit" value="Set Temperature">
+        </form>
+        <p id="statusMessage"></p>
+    </div>
 </body>
 </html>
