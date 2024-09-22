@@ -34,6 +34,13 @@ services:
     restart: always
     volumes:
       - redis-data:/data
+  esphome:
+    image: ghcr.io/esphome/esphome
+    restart: always
+    ports:
+      -  "80:80"
+    volumes:
+      -  esphome-data:/config
 
 volumes:
   redis-data:
