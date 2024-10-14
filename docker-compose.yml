@@ -10,9 +10,9 @@ services:
     image: arm64v8/emqx:latest
     restart: always
     environment:
-      EMQX_NAME=thermostat
-      EMQX_CLUSTER__DISCOVERY=strict
-      EMQX_NODE__NAME=node@thermostat
+      - EMQX_NAME=thermostat
+      - EMQX_CLUSTER__DISCOVERY=strict
+      - EMQX_NODE__NAME=node@thermostat
     ports:
       - "1883:1883"
       - "8083:8083"
