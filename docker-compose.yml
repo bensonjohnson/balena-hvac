@@ -7,7 +7,7 @@ services:
       - "/dev/i2c-1:/dev/i2c-1"
     privileged: true
   emqx:
-    image: emqx/emqx:latest-arm64
+    image: arm64v8/emqx:latest
     restart: always
     environment:
       EMQX_NAME=thermostat

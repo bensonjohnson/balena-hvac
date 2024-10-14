@@ -14,7 +14,7 @@ services:
   - name: influx-logger
     build: ./influx-logger
   - name: emqx
-    build: emqx/emqx:latest-arm64
+    build: arm64v8/emqx:latest
   - name: redis
     image: redis:latest
     restart: always
