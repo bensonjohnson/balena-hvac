@@ -6,7 +6,13 @@ services:
     devices:
       - "/dev/i2c-1:/dev/i2c-1"
     privileged: true
-
+  mosquitto:
+    build: ./mosquitto
+    restart: always
+    ports:
+      - "1883:1883"
+    volumes:
+      - mosquitto-data:/mosquitto/data
   web-interface:
     build: ./web-interface
     depends_on:
@@ -37,3 +43,4 @@ services:
 
 volumes:
   redis-data:
+  mosquitto-data:

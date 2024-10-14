@@ -13,8 +13,11 @@ services:
     build: ./nginx-proxy
   - name: influx-logger
     build: ./influx-logger
+  - name: mosquitto
+    build: ./mosquitto
   - name: redis
     image: redis:latest
     restart: always
     volumes:
       - redis-data:/data
+      - mosquitto-data:/mosquitto/data
