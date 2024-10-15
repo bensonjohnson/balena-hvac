@@ -13,8 +13,9 @@ services:
     build: ./nginx-proxy
   - name: influx-logger
     build: ./influx-logger
-  - name: emqx
-    build: arm64v8/emqx:latest
+  - name: mosquitto
+    build: ./mosquitto
+    restart: always
   - name: redis
     image: redis:latest
     restart: always
