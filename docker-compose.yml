@@ -7,7 +7,7 @@ services:
       - "/dev/i2c-1:/dev/i2c-1"
     privileged: true
   mosquitto:
-    image: ./mosquitto
+    build: ./mosquitto
     restart: always
     ports:
       - "1883:1883"
