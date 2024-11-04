@@ -6,13 +6,13 @@ services:
     devices:
       - "/dev/i2c-1:/dev/i2c-1"
     privileged: true
-    depends_on:
-      - mosquitto
-  mosquitto:
-    build: ./mosquitto
-    restart: always
-    ports:
-      - "1883:1883"
+#    depends_on:
+#      - mosquitto
+#  mosquitto:
+#    build: ./mosquitto
+#    restart: always
+#    ports:
+#      - "1883:1883"
   web-interface:
     build: ./web-interface
     depends_on:

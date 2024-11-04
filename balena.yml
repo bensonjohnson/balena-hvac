@@ -1,4 +1,4 @@
-version: '1.3.7'
+version: '1.3.75'
 type: 'sw.application'
 slug: g_benson_johnson/hvac
 name: SBC-HVAC
@@ -13,9 +13,9 @@ services:
     build: ./nginx-proxy
   - name: influx-logger
     build: ./influx-logger
-  - name: mosquitto
-    build: ./mosquitto
-    restart: always
+#  - name: mosquitto
+#    build: ./mosquitto
+#    restart: always
   - name: redis
     image: redis:latest
     restart: always
