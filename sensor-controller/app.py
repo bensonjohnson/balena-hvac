@@ -186,6 +186,13 @@ def set_temp():
 # Manual override flag
 manual_override = False
 
+# Retrieve the state from Redis or default to "off"
+system_state = redis_client.get('system_state')
+if system_state:
+    manual_override = (system_state.decode('utf-8').lower() == 'off')
+else:
+    manual_override = True
+
 @app.route('/toggle_system', methods=['POST'])
 def toggle_system():
     global manual_override
@@ -194,12 +201,14 @@ def toggle_system():
 
     if state == 'on':
         manual_override = False
+        redis_client.set('system_state', 'on')
         response_message = 'PID control reactivated'
     elif state == 'off':
         manual_override = True
         GPIO.output(coolingRelayPin, GPIO.LOW)
         GPIO.output(heatingRelayPin, GPIO.LOW)
         GPIO.output(fanRelayPin, GPIO.LOW)
+        redis_client.set('system_state', 'off')
         response_message = 'System turned off, manual override activated'
     else:
         return jsonify({'error': 'Invalid state specified'}), 400
@@ -213,6 +222,7 @@ def turn_off():
     GPIO.output(coolingRelayPin, GPIO.LOW)
     GPIO.output(heatingRelayPin, GPIO.LOW)
     GPIO.output(fanRelayPin, GPIO.LOW)
+    redis_client.set('system_state', 'off')
     return jsonify({'message': 'All systems turned off'}), 200
 
 @app.route('/manual_control', methods=['POST'])
@@ -225,16 +235,19 @@ def manual_control():
         GPIO.output(coolingRelayPin, GPIO.LOW)
         GPIO.output(heatingRelayPin, GPIO.LOW)
         GPIO.output(fanRelayPin, GPIO.LOW)
+        redis_client.set('system_state', 'off')
         response_message = 'All systems turned off'
     elif mode == 'cooling':
         GPIO.output(coolingRelayPin, GPIO.HIGH)
         GPIO.output(heatingRelayPin, GPIO.LOW)
         GPIO.output(fanRelayPin, GPIO.HIGH)
+        redis_client.set('system_state', 'cooling')
         response_message = 'Cooling mode activated'
     elif mode == 'heating':
         GPIO.output(coolingRelayPin, GPIO.LOW)
         GPIO.output(heatingRelayPin, GPIO.HIGH)
         GPIO.output(fanRelayPin, GPIO.HIGH)
+        redis_client.set('system_state', 'heating')
         response_message = 'Heating mode activated'
     else:
         manual_override = False
