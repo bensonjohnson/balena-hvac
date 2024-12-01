@@ -24,12 +24,17 @@
                     $('#systemState').text(data.systemState);
                     populateSensorDropdown(data.sensorData);
                     updateTemperatureDisplay(data.average_temperature);
+
+                    // Update toggle switch state
+                    const isSystemOn = data.systemState === 'on';
+                    $('#toggleSwitch').prop('checked', isSystemOn);
                 },
                 error: function(jqXHR, textStatus, errorThrown) {
                     console.error('Error fetching data: ', textStatus, errorThrown);
                 }
             });
         }
+
 
         // Function to populate the sensor dropdown
         function populateSensorDropdown(sensorData) {

@@ -87,7 +87,7 @@ def get_status():
         return jsonify({'error': 'No sensor data available for the selected mode'}), 404
 
     pid_value = pid(average_temperature)
-    system_state = adjust_relays(pid_value, average_temperature)
+    system_state = "off" if manual_override else "on"
     return jsonify({
         'average_temperature': average_temperature,
         'average_humidity': average_humidity,
