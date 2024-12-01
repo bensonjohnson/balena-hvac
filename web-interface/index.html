@@ -26,8 +26,11 @@
                     updateTemperatureDisplay(data.average_temperature);
 
                     // Update toggle switch state
-                    const isSystemOn = data.systemState === 'on';
-                    $('#toggleSwitch').prop('checked', isSystemOn);
+                    const isManualOverride = data.systemState === 'Manual Override';
+                    const isSystemActive = data.systemState === 'Heating' || data.systemState === 'Cooling';
+
+                    $('#toggleSwitch').prop('checked', isSystemActive || isManualOverride);
+                    $('#toggleMessage').text(`Current System State: ${data.systemState}`);
                 },
                 error: function(jqXHR, textStatus, errorThrown) {
                     console.error('Error fetching data: ', textStatus, errorThrown);
@@ -119,7 +122,7 @@
 
         // Event listener for toggle switch
         $('#toggleSwitch').change(function() {
-            if(this.checked) {
+            if (this.checked) {
                 toggleSystem('on');
             } else {
                 toggleSystem('off');

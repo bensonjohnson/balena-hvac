@@ -87,7 +87,18 @@ def get_status():
         return jsonify({'error': 'No sensor data available for the selected mode'}), 404
 
     pid_value = pid(average_temperature)
-    system_state = "off" if manual_override else "on"
+
+    # Determine system state
+    if manual_override:
+        system_state = "Manual Override"
+    else:
+        if GPIO.input(heatingRelayPin) == GPIO.HIGH:
+            system_state = "Heating"
+        elif GPIO.input(coolingRelayPin) == GPIO.HIGH:
+            system_state = "Cooling"
+        else:
+            system_state = "Off"
+
     return jsonify({
         'average_temperature': average_temperature,
         'average_humidity': average_humidity,
@@ -101,6 +112,7 @@ def get_status():
         'selectedMode': selected_mode,
         'selectedSensor': selected_sensor_name
     })
+
 
 
 @app.route('/pid', methods=['POST'])
