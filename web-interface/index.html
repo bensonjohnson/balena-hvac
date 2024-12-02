@@ -2,9 +2,10 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SBC-HVAC</title>
+    <!-- Link to the external CSS file -->
     <link rel="stylesheet" type="text/css" href="styles.css">
+    <!-- Include jQuery -->
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
     <script>
     $(document).ready(function() {
@@ -14,7 +15,7 @@
         // Function to fetch data and update UI
         function fetchData() {
             $.ajax({
-                url: '/api/getstatus',
+                url: '/getstatus',  // Adjusted URL to match backend
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
@@ -26,7 +27,7 @@
                     populateSensorDropdown(data.sensorData);
                     updateTemperatureDisplay(data.average_temperature);
 
-                    // Update toggle switch state
+                    // Update toggle switch state based on pidEnabled
                     $('#toggleSwitch').prop('checked', data.pidEnabled);
                     $('#toggleMessage').text(`Current System State: ${data.systemState}`);
                 },
@@ -54,7 +55,7 @@
         // Function to set the mode (average or specific sensor)
         function setMode(mode, sensorName) {
             $.ajax({
-                url: '/api/set_mode',
+                url: '/set_mode',
                 method: 'POST',
                 contentType: 'application/json',
                 data: JSON.stringify({ mode: mode, sensor_name: sensorName }),
@@ -80,7 +81,7 @@
 
         // Function to set new temperature
         function setTemperature(newTemp) {
-            $.post('/api/settemp', { settemp: newTemp }, function(response) {
+            $.post('/settemp', { settemp: newTemp }, function(response) {
                 $('#statusMessage').text(response.message);
                 fetchData(); // Refresh data after setting new temp
             }, 'json');
@@ -89,7 +90,7 @@
         // Function to toggle the system (activate/deactivate PID)
         function toggleSystem(state) {
             $.ajax({
-                url: '/api/toggle_system',
+                url: '/toggle_system',
                 method: 'POST',
                 contentType: 'application/json',
                 data: JSON.stringify({ state: state }),
@@ -121,9 +122,9 @@
         // Event listener for toggle switch
         $('#toggleSwitch').change(function() {
             if (this.checked) {
-                toggleSystem('on');  // Enable PID
+                toggleSystem('on');  // Enable PID control
             } else {
-                toggleSystem('off');  // Manual Override
+                toggleSystem('off');  // Disable PID control
             }
         });
 
@@ -141,8 +142,8 @@
 </head>
 <body>
     <div id="tempDisplay">
-        <p id="temperature-label">Average Temperature: </p>
-        <p><span id="average_temperature">Loading...</span></p>
+        <p id="temperature-label">Average Temperature:</p>
+        <span id="average_temperature">Loading...</span>
         <p>Set Temperature: <span id="setTemp">Loading...</span></p>
         <p>PID Calculation: <span id="pidValue">Loading...</span></p>
         <p>System State: <span id="systemState">Loading...</span></p>
@@ -154,8 +155,8 @@
             <span class="slider round"></span>
         </label>
         <p>Toggle System (ON/OFF)</p>
-        <p id="toggleMessage"></p>
     </div>
+    <p id="toggleMessage"></p>
 
     <div id="sensorControl">
         <label for="sensor-select">Select Sensor:</label>
@@ -167,7 +168,7 @@
     <div id="tempSetControl">
         <form id="setTempForm">
             <label for="newTemp">Set New Temperature (°F):</label>
-            <input type="number" id="newTemp" name="newtemp" step="0.1">
+            <input type="number" id="newTemp" name="newtemp" step="0.1" required>
             <input type="submit" value="Set Temperature">
         </form>
         <p id="statusMessage"></p>

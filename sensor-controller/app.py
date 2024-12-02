@@ -1,11 +1,11 @@
 from flask import Flask, request, jsonify
+from flask_cors import CORS
 import RPi.GPIO as GPIO
 from simple_pid import PID
 import time
 import board
 import busio
 import adafruit_sht31d
-from flask_cors import CORS
 from datetime import datetime, timedelta
 import threading
 import redis
@@ -20,6 +20,27 @@ sensor_data = {}
 selected_mode = 'average'
 selected_sensor_name = None
 
+# Initialize Redis connection
+redis_client = redis.StrictRedis(host='redis', port=6379, db=0)
+
+# GPIO Pins (Use BCM numbering)
+coolingRelayPin = 18  # purple
+heatingRelayPin = 23  # blue
+fanRelayPin = 24      # green
+
+# Setup GPIO
+GPIO.setmode(GPIO.BCM)
+GPIO.setup(coolingRelayPin, GPIO.OUT)
+GPIO.setup(heatingRelayPin, GPIO.OUT)
+GPIO.setup(fanRelayPin, GPIO.OUT)
+time.sleep(0.1)
+GPIO.output(coolingRelayPin, GPIO.LOW)
+GPIO.output(heatingRelayPin, GPIO.LOW)
+GPIO.output(fanRelayPin, GPIO.LOW)
+
+# Initialize the I2C bus and sensor
+i2c = busio.I2C(board.SCL, board.SDA)
+sensor = adafruit_sht31d.SHT31D(i2c)
 
 def store_sensor_data(sensor_name, temperature, humidity):
     current_time = datetime.now()
@@ -32,30 +53,10 @@ def store_sensor_data(sensor_name, temperature, humidity):
     })
 
     # Remove data older than 1 hour
-    sensor_data[sensor_name] = [data for data in sensor_data[sensor_name] if data['timestamp'] > current_time - timedelta(hours=1)]
-
-# Initialize Redis connection
-redis_client = redis.StrictRedis(host='redis', port=6379, db=0)
-
-# GPIO Pins (Use BCM numbering)
-coolingRelayPin = 18 #purple
-heatingRelayPin = 23 #blue
-fanRelayPin = 24 #green
-
-# Setup GPIO
-GPIO.setmode(GPIO.BCM)
-GPIO.setup(coolingRelayPin, GPIO.OUT)
-GPIO.setup(heatingRelayPin, GPIO.OUT)
-GPIO.setup(fanRelayPin, GPIO.OUT)
-time.sleep(0.1)
-GPIO.output(coolingRelayPin, GPIO.LOW)
-GPIO.output(heatingRelayPin, GPIO.LOW)
-GPIO.output(fanRelayPin, GPIO.LOW)
-
-# Initialize the I2C bus
-i2c = busio.I2C(board.SCL, board.SDA)
-# Initialize the SHT31D sensor
-sensor = adafruit_sht31d.SHT31D(i2c)
+    sensor_data[sensor_name] = [
+        data for data in sensor_data[sensor_name]
+        if data['timestamp'] > current_time - timedelta(hours=1)
+    ]
 
 def read_sensor_data():
     while True:
@@ -76,6 +77,20 @@ setpointTempF = float(redis_client.get('set_temperature') or 70.0)
 pid = PID(0.5, 0.1, 0.01, setpoint=setpointTempF)
 pid.output_limits = (0, 1)
 
+# Initialize PID control state
+pid_enabled = True  # Assume PID control is enabled by default
+
+# Retrieve PID control state from Redis if it exists
+pid_enabled_redis = redis_client.get('pid_enabled')
+if pid_enabled_redis is not None:
+    pid_enabled = pid_enabled_redis.decode('utf-8') == 'True'
+
+# Ensure relays are set appropriately at startup
+if not pid_enabled:
+    GPIO.output(coolingRelayPin, GPIO.LOW)
+    GPIO.output(heatingRelayPin, GPIO.LOW)
+    GPIO.output(fanRelayPin, GPIO.LOW)
+
 @app.route('/getstatus', methods=['GET'])
 def get_status():
     try:
@@ -93,10 +108,6 @@ def get_status():
         else:
             system_state = "Off"  # Default to "Off" if no state is stored
 
-        # Ensure manual override reflects proper state
-        if manual_override:
-            system_state = "Manual Override"
-
         return jsonify({
             'average_temperature': average_temperature,
             'average_humidity': average_humidity,
@@ -108,13 +119,12 @@ def get_status():
             'Kd': pid.Kd,
             'sensorData': sensor_data,
             'selectedMode': selected_mode,
-            'selectedSensor': selected_sensor_name
+            'selectedSensor': selected_sensor_name,
+            'pidEnabled': pid_enabled
         })
     except Exception as e:
         print(f"Error in /getstatus: {e}")
         return jsonify({'error': str(e)}), 500
-
-
 
 @app.route('/pid', methods=['POST'])
 def update_pid():
@@ -143,7 +153,7 @@ def submit_sensor_data():
         return jsonify({'error': f'Missing key in data: {str(e)}'}), 400
     except ValueError as e:
         return jsonify({'error': f'Invalid value for sensor data: {str(e)}'}), 400
-    
+
 @app.route('/set_mode', methods=['POST'])
 def set_mode():
     global selected_mode, selected_sensor_name
@@ -161,7 +171,6 @@ def set_mode():
         return jsonify({'message': f'Mode set to follow sensor {sensor_name}'}), 200
     else:
         return jsonify({'error': 'Invalid mode or sensor name'}), 400
-
 
 def get_sensor_data(mode, sensor_name=None):
     total_temp = total_hum = count = 0
@@ -186,7 +195,6 @@ def get_sensor_data(mode, sensor_name=None):
         return None, None
     return total_temp / count, total_hum / count
 
-
 @app.route('/settemp', methods=['POST'])
 def set_temp():
     global setpointTempF
@@ -196,119 +204,36 @@ def set_temp():
     redis_client.set('set_temperature', new_temp)
     return jsonify({'message': 'Set temperature updated to {} °F'.format(new_temp)})
 
-# Manual override flag
-manual_override = False
-
-# Retrieve the state from Redis or default to "off"
-system_state = redis_client.get('system_state')
-if system_state:
-    manual_override = (system_state.decode('utf-8').lower() == 'off')
-else:
-    manual_override = True
-
 @app.route('/toggle_system', methods=['POST'])
 def toggle_system():
-    global manual_override
+    global pid_enabled
     data = request.get_json()
     state = data.get('state', 'off').lower()
 
     if state == 'on':
-        manual_override = False
-        redis_client.set('system_state', 'Off')  # PID will determine heating/cooling
+        pid_enabled = True
+        redis_client.set('pid_enabled', 'True')
+        redis_client.set('system_state', 'PID Control')
         response_message = 'PID control activated'
     elif state == 'off':
-        manual_override = True
+        pid_enabled = False
+        redis_client.set('pid_enabled', 'False')
+        # Turn off all relays when PID is disabled
         GPIO.output(coolingRelayPin, GPIO.LOW)
         GPIO.output(heatingRelayPin, GPIO.LOW)
         GPIO.output(fanRelayPin, GPIO.LOW)
-        redis_client.set('system_state', 'Manual Override')
-        response_message = 'System turned off, manual override activated'
+        redis_client.set('system_state', 'System Off')
+        response_message = 'System turned off'
     else:
         return jsonify({'error': 'Invalid state specified'}), 400
 
     return jsonify({'message': response_message}), 200
 
-
-@app.route('/off', methods=['POST'])
-def turn_off():
-    global manual_override
-    manual_override = True
-    GPIO.output(coolingRelayPin, GPIO.LOW)
-    GPIO.output(heatingRelayPin, GPIO.LOW)
-    GPIO.output(fanRelayPin, GPIO.LOW)
-    redis_client.set('system_state', 'off')
-    return jsonify({'message': 'All systems turned off'}), 200
-
-@app.route('/manual_control', methods=['POST'])
-def manual_control():
-    global manual_override
-    data = request.get_json()
-    mode = data.get('mode', 'off').lower()
-    manual_override = True
-    if mode == 'off':
-        GPIO.output(coolingRelayPin, GPIO.LOW)
-        GPIO.output(heatingRelayPin, GPIO.LOW)
-        GPIO.output(fanRelayPin, GPIO.LOW)
-        redis_client.set('system_state', 'off')
-        response_message = 'All systems turned off'
-    elif mode == 'cooling':
-        GPIO.output(coolingRelayPin, GPIO.HIGH)
-        GPIO.output(heatingRelayPin, GPIO.LOW)
-        GPIO.output(fanRelayPin, GPIO.HIGH)
-        redis_client.set('system_state', 'cooling')
-        response_message = 'Cooling mode activated'
-    elif mode == 'heating':
-        GPIO.output(coolingRelayPin, GPIO.LOW)
-        GPIO.output(heatingRelayPin, GPIO.HIGH)
-        GPIO.output(fanRelayPin, GPIO.HIGH)
-        redis_client.set('system_state', 'heating')
-        response_message = 'Heating mode activated'
-    else:
-        manual_override = False
-        return jsonify({'error': 'Invalid mode specified'}), 400
-    return jsonify({'message': response_message}), 200
-
-# Initialize GPIO pins based on stored state
-stored_state = redis_client.get('system_state')
-if stored_state:
-    stored_state = stored_state.decode('utf-8')
-else:
-    stored_state = "Off"
-
-if stored_state == "Heating":
-    GPIO.output(coolingRelayPin, GPIO.LOW)
-    GPIO.output(heatingRelayPin, GPIO.HIGH)
-    GPIO.output(fanRelayPin, GPIO.HIGH)
-elif stored_state == "Cooling":
-    GPIO.output(coolingRelayPin, GPIO.HIGH)
-    GPIO.output(heatingRelayPin, GPIO.LOW)
-    GPIO.output(fanRelayPin, GPIO.HIGH)
-else:  # Default to "Off"
-    GPIO.output(coolingRelayPin, GPIO.LOW)
-    GPIO.output(heatingRelayPin, GPIO.LOW)
-    GPIO.output(fanRelayPin, GPIO.LOW)
-
-redis_client.set('system_state', stored_state)
-
-
-def is_summer():
-    current_month = datetime.now().month
-    # summer is June, July, and August
-    return current_month in [6, 7, 8]
-
-def is_winter():
-    current_month = datetime.now().month
-    # winter is Dec., Jan, Feb
-    return current_month in [12, 1, 2]
-
 def adjust_relays(pid_output, average_temperature):
-    global manual_override
-    if manual_override:
-        GPIO.output(coolingRelayPin, GPIO.LOW)
-        GPIO.output(heatingRelayPin, GPIO.LOW)
-        GPIO.output(fanRelayPin, GPIO.LOW)
-        redis_client.set('system_state', 'Manual Override')
-        return "Manual Override"
+    global pid_enabled
+    if not pid_enabled:
+        # PID control is disabled; do not adjust relays
+        return "System Off"
 
     # Automatic control (PID active)
     if average_temperature < setpointTempF - pid_output:
@@ -327,10 +252,31 @@ def adjust_relays(pid_output, average_temperature):
         GPIO.output(coolingRelayPin, GPIO.LOW)
         GPIO.output(heatingRelayPin, GPIO.LOW)
         GPIO.output(fanRelayPin, GPIO.LOW)
-        redis_client.set('system_state', 'Off')
-        return "Off"
+        redis_client.set('system_state', 'Idle')
+        return "Idle"
 
+def control_loop():
+    while True:
+        if selected_mode == 'average':
+            average_temperature, _ = get_sensor_data('average')
+        else:
+            average_temperature, _ = get_sensor_data('specific', selected_sensor_name)
 
+        if average_temperature is not None:
+            pid_value = pid(average_temperature)
+            adjust_relays(pid_value, average_temperature)
+        else:
+            # No valid temperature data; turn off all relays
+            GPIO.output(coolingRelayPin, GPIO.LOW)
+            GPIO.output(heatingRelayPin, GPIO.LOW)
+            GPIO.output(fanRelayPin, GPIO.LOW)
+            redis_client.set('system_state', 'No Data')
+
+        time.sleep(5)  # Adjust the sleep time as needed
+
+control_thread = threading.Thread(target=control_loop)
+control_thread.daemon = True
+control_thread.start()
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
