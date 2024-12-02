@@ -78,40 +78,38 @@ pid.output_limits = (0, 1)
 
 @app.route('/getstatus', methods=['GET'])
 def get_status():
-    if selected_mode == 'average':
-        average_temperature, average_humidity = get_sensor_data('average')
-    else:
-        average_temperature, average_humidity = get_sensor_data('specific', selected_sensor_name)
-
-    if average_temperature is None:
-        return jsonify({'error': 'No sensor data available for the selected mode'}), 404
-
-    pid_value = pid(average_temperature)
-
-    # Determine system state
-    if manual_override:
-        system_state = "Manual Override"
-    else:
-        if GPIO.input(heatingRelayPin) == GPIO.HIGH:
-            system_state = "Heating"
-        elif GPIO.input(coolingRelayPin) == GPIO.HIGH:
-            system_state = "Cooling"
+    try:
+        if selected_mode == 'average':
+            average_temperature, average_humidity = get_sensor_data('average')
         else:
-            system_state = "Off"
+            average_temperature, average_humidity = get_sensor_data('specific', selected_sensor_name)
 
-    return jsonify({
-        'average_temperature': average_temperature,
-        'average_humidity': average_humidity,
-        'setTemperature': setpointTempF,
-        'pidValue': pid_value,
-        'systemState': system_state,
-        'Kp': pid.Kp,
-        'Ki': pid.Ki,
-        'Kd': pid.Kd,
-        'sensorData': sensor_data,
-        'selectedMode': selected_mode,
-        'selectedSensor': selected_sensor_name
-    })
+        pid_value = pid(average_temperature) if average_temperature is not None else "N/A"
+
+        # Retrieve the system state from Redis
+        system_state = redis_client.get('system_state')
+        if system_state:
+            system_state = system_state.decode('utf-8')
+        else:
+            system_state = "Unknown"
+
+        return jsonify({
+            'average_temperature': average_temperature,
+            'average_humidity': average_humidity,
+            'setTemperature': setpointTempF,
+            'pidValue': pid_value,
+            'systemState': system_state,
+            'Kp': pid.Kp,
+            'Ki': pid.Ki,
+            'Kd': pid.Kd,
+            'sensorData': sensor_data,
+            'selectedMode': selected_mode,
+            'selectedSensor': selected_sensor_name
+        })
+    except Exception as e:
+        print(f"Error in /getstatus: {e}")
+        return jsonify({'error': str(e)}), 500
+
 
 
 
@@ -266,6 +264,29 @@ def manual_control():
         return jsonify({'error': 'Invalid mode specified'}), 400
     return jsonify({'message': response_message}), 200
 
+# Initialize GPIO pins based on stored state
+stored_state = redis_client.get('system_state')
+if stored_state:
+    stored_state = stored_state.decode('utf-8')
+else:
+    stored_state = "Off"
+
+if stored_state == "Heating":
+    GPIO.output(coolingRelayPin, GPIO.LOW)
+    GPIO.output(heatingRelayPin, GPIO.HIGH)
+    GPIO.output(fanRelayPin, GPIO.HIGH)
+elif stored_state == "Cooling":
+    GPIO.output(coolingRelayPin, GPIO.HIGH)
+    GPIO.output(heatingRelayPin, GPIO.LOW)
+    GPIO.output(fanRelayPin, GPIO.HIGH)
+else:  # Default to "Off"
+    GPIO.output(coolingRelayPin, GPIO.LOW)
+    GPIO.output(heatingRelayPin, GPIO.LOW)
+    GPIO.output(fanRelayPin, GPIO.LOW)
+
+redis_client.set('system_state', stored_state)
+
+
 def is_summer():
     current_month = datetime.now().month
     # summer is June, July, and August
@@ -279,35 +300,42 @@ def is_winter():
 def adjust_relays(pid_output, average_temperature):
     global manual_override
     if manual_override:
-        return "Manual override active"
+        redis_client.set('system_state', 'Manual Override')
+        return "Manual Override"
 
-    # If it's summer or winter and its ourside the threshold, do nothing
+    # If it's summer or winter and it's outside the threshold, do nothing
     if is_summer() and average_temperature < setpointTempF:
         GPIO.output(coolingRelayPin, GPIO.LOW)
         GPIO.output(heatingRelayPin, GPIO.LOW)
         GPIO.output(fanRelayPin, GPIO.LOW)
+        redis_client.set('system_state', 'Off')
         return "Summer mode: No heating"
     if is_winter() and average_temperature > setpointTempF:
         GPIO.output(coolingRelayPin, GPIO.LOW)
         GPIO.output(heatingRelayPin, GPIO.LOW)
         GPIO.output(fanRelayPin, GPIO.LOW)
-        return "winter mode: No Cooling"
+        redis_client.set('system_state', 'Off')
+        return "Winter mode: No cooling"
 
     if average_temperature < setpointTempF - pid_output:
         GPIO.output(coolingRelayPin, GPIO.LOW)
         GPIO.output(heatingRelayPin, GPIO.HIGH)
         GPIO.output(fanRelayPin, GPIO.HIGH)
+        redis_client.set('system_state', 'Heating')
         return "Heating"
     elif average_temperature > setpointTempF + pid_output:
         GPIO.output(coolingRelayPin, GPIO.HIGH)
         GPIO.output(heatingRelayPin, GPIO.LOW)
         GPIO.output(fanRelayPin, GPIO.HIGH)
+        redis_client.set('system_state', 'Cooling')
         return "Cooling"
     else:
         GPIO.output(coolingRelayPin, GPIO.LOW)
         GPIO.output(heatingRelayPin, GPIO.LOW)
         GPIO.output(fanRelayPin, GPIO.LOW)
+        redis_client.set('system_state', 'Off')
         return "Off"
+
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
