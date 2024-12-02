@@ -17,22 +17,40 @@
             $.ajax({
                 url: '/getstatus',  // Adjusted URL to match backend
                 method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                dataType: 'json',
                 success: function(data) {
-                    $('#setTemp').text(data.setTemperature + ' °F');
-                    $('#pidValue').text(data.pidValue);
-                    $('#systemState').text(data.systemState);
+                    if (data.setTemperature != null) {
+                        $('#setTemp').text(parseFloat(data.setTemperature).toFixed(2) + ' °F');
+                    } else {
+                        $('#setTemp').text('N/A');
+                    }
+
+                    if (data.pidValue != null) {
+                        $('#pidValue').text(parseFloat(data.pidValue).toFixed(2));
+                    } else {
+                        $('#pidValue').text('N/A');
+                    }
+
+                    if (data.systemState != null) {
+                        $('#systemState').text(data.systemState);
+                    } else {
+                        $('#systemState').text('N/A');
+                    }
+
                     populateSensorDropdown(data.sensorData);
-                    updateTemperatureDisplay(data.average_temperature);
+
+                    if (data.average_temperature != null) {
+                        updateTemperatureDisplay(data.average_temperature);
+                    } else {
+                        $('#average_temperature').text('N/A');
+                    }
 
                     // Update toggle switch state based on pidEnabled
                     $('#toggleSwitch').prop('checked', data.pidEnabled);
                     $('#toggleMessage').text(`Current System State: ${data.systemState}`);
                 },
                 error: function(jqXHR, textStatus, errorThrown) {
-                    console.error('Error fetching data: ', textStatus, errorThrown);
+                    console.error('Error fetching data:', textStatus, errorThrown);
                 }
             });
         }
@@ -42,9 +60,15 @@
             var sensorSelect = $('#sensor-select');
             sensorSelect.empty();
             sensorSelect.append('<option value="average">Average</option>');
-            $.each(sensorData, function(sensorName) {
-                sensorSelect.append('<option value="' + sensorName + '">' + sensorName + '</option>');
-            });
+
+            if (sensorData && typeof sensorData === 'object') {
+                $.each(sensorData, function(sensorName) {
+                    sensorSelect.append('<option value="' + sensorName + '">' + sensorName + '</option>');
+                });
+            } else {
+                console.error('Invalid sensorData:', sensorData);
+            }
+
             if (currentMode === 'specific' && currentSensor) {
                 sensorSelect.val(currentSensor);
             } else {
@@ -66,7 +90,7 @@
                     fetchData(); // Refresh data after setting the mode
                 },
                 error: function(jqXHR, textStatus, errorThrown) {
-                    console.error('Error setting mode: ', textStatus, errorThrown);
+                    console.error('Error setting mode:', textStatus, errorThrown);
                     $('#statusMessage').text('Error: ' + textStatus + ' ' + errorThrown);
                 }
             });
@@ -74,9 +98,9 @@
 
         // Function to update the temperature display and label
         function updateTemperatureDisplay(temperature) {
-            let label = currentMode === 'average' ? 'Average Temperature' : currentSensor + ' Temperature';
+            let label = currentMode === 'average' ? 'Average Temperature:' : currentSensor + ' Temperature:';
             $('#temperature-label').text(label);
-            $('#average_temperature').text(temperature + ' °F');
+            $('#average_temperature').text(parseFloat(temperature).toFixed(2) + ' °F');
         }
 
         // Function to set new temperature
@@ -84,7 +108,10 @@
             $.post('/settemp', { settemp: newTemp }, function(response) {
                 $('#statusMessage').text(response.message);
                 fetchData(); // Refresh data after setting new temp
-            }, 'json');
+            }, 'json').fail(function(jqXHR, textStatus, errorThrown) {
+                console.error('Error setting temperature:', textStatus, errorThrown);
+                $('#statusMessage').text('Error: ' + textStatus + ' ' + errorThrown);
+            });
         }
 
         // Function to toggle the system (activate/deactivate PID)
@@ -100,7 +127,7 @@
                     fetchData();
                 },
                 error: function(jqXHR, textStatus, errorThrown) {
-                    console.error('Error toggling system: ', textStatus, errorThrown);
+                    console.error('Error toggling system:', textStatus, errorThrown);
                     $('#toggleMessage').text('Error: ' + textStatus + ' ' + errorThrown);
                 }
             });
@@ -142,8 +169,10 @@
 </head>
 <body>
     <div id="tempDisplay">
-        <p id="temperature-label">Average Temperature:</p>
-        <span id="average_temperature">Loading...</span>
+        <p>
+            <span id="temperature-label">Average Temperature:</span>
+            <span id="average_temperature">Loading...</span>
+        </p>
         <p>Set Temperature: <span id="setTemp">Loading...</span></p>
         <p>PID Calculation: <span id="pidValue">Loading...</span></p>
         <p>System State: <span id="systemState">Loading...</span></p>
