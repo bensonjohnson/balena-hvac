@@ -15,7 +15,7 @@
         // Function to fetch data and update UI
         function fetchData() {
             $.ajax({
-                url: '/getstatus',  // Adjusted URL to match backend
+                url: '/api/getstatus',  // Updated URL to include /api/
                 method: 'GET',
                 dataType: 'json',
                 success: function(data) {
@@ -79,7 +79,7 @@
         // Function to set the mode (average or specific sensor)
         function setMode(mode, sensorName) {
             $.ajax({
-                url: '/set_mode',
+                url: '/api/set_mode',  // Updated URL to include /api/
                 method: 'POST',
                 contentType: 'application/json',
                 data: JSON.stringify({ mode: mode, sensor_name: sensorName }),
@@ -105,7 +105,7 @@
 
         // Function to set new temperature
         function setTemperature(newTemp) {
-            $.post('/settemp', { settemp: newTemp }, function(response) {
+            $.post('/api/settemp', { settemp: newTemp }, function(response) {
                 $('#statusMessage').text(response.message);
                 fetchData(); // Refresh data after setting new temp
             }, 'json').fail(function(jqXHR, textStatus, errorThrown) {
@@ -117,7 +117,7 @@
         // Function to toggle the system (activate/deactivate PID)
         function toggleSystem(state) {
             $.ajax({
-                url: '/toggle_system',
+                url: '/api/toggle_system',  // Updated URL to include /api/
                 method: 'POST',
                 contentType: 'application/json',
                 data: JSON.stringify({ state: state }),
