@@ -86,12 +86,14 @@ def get_status():
 
         pid_value = pid(average_temperature) if average_temperature is not None else "N/A"
 
-        # Retrieve the system state from Redis
+        # Retrieve the system state and PID status from Redis
         system_state = redis_client.get('system_state')
         if system_state:
             system_state = system_state.decode('utf-8')
         else:
-            system_state = "Unknown"
+            system_state = "Off"  # Default to "Off" if no state is stored
+
+        pid_enabled = not manual_override  # PID is enabled if not in manual override
 
         return jsonify({
             'average_temperature': average_temperature,
@@ -99,6 +101,7 @@ def get_status():
             'setTemperature': setpointTempF,
             'pidValue': pid_value,
             'systemState': system_state,
+            'pidEnabled': pid_enabled,
             'Kp': pid.Kp,
             'Ki': pid.Ki,
             'Kd': pid.Kd,
@@ -109,8 +112,6 @@ def get_status():
     except Exception as e:
         print(f"Error in /getstatus: {e}")
         return jsonify({'error': str(e)}), 500
-
-
 
 
 @app.route('/pid', methods=['POST'])
@@ -211,14 +212,14 @@ def toggle_system():
 
     if state == 'on':
         manual_override = False
-        redis_client.set('system_state', 'on')
-        response_message = 'PID control reactivated'
+        redis_client.set('system_state', 'Off')  # PID will determine heating/cooling
+        response_message = 'PID control activated'
     elif state == 'off':
         manual_override = True
         GPIO.output(coolingRelayPin, GPIO.LOW)
         GPIO.output(heatingRelayPin, GPIO.LOW)
         GPIO.output(fanRelayPin, GPIO.LOW)
-        redis_client.set('system_state', 'off')
+        redis_client.set('system_state', 'Manual Override')
         response_message = 'System turned off, manual override activated'
     else:
         return jsonify({'error': 'Invalid state specified'}), 400

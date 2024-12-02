@@ -27,10 +27,7 @@
                     updateTemperatureDisplay(data.average_temperature);
 
                     // Update toggle switch state
-                    const isManualOverride = data.systemState === 'Manual Override';
-                    const isSystemActive = data.systemState === 'Heating' || data.systemState === 'Cooling';
-
-                    $('#toggleSwitch').prop('checked', isSystemActive || isManualOverride);
+                    $('#toggleSwitch').prop('checked', data.pidEnabled);
                     $('#toggleMessage').text(`Current System State: ${data.systemState}`);
                 },
                 error: function(jqXHR, textStatus, errorThrown) {
@@ -89,6 +86,7 @@
             }, 'json');
         }
 
+        // Function to toggle the system (activate/deactivate PID)
         function toggleSystem(state) {
             $.ajax({
                 url: '/api/toggle_system',
@@ -98,7 +96,7 @@
                 dataType: 'json',
                 success: function(response) {
                     $('#toggleMessage').text(response.message);
-                    fetchData(); 
+                    fetchData();
                 },
                 error: function(jqXHR, textStatus, errorThrown) {
                     console.error('Error toggling system: ', textStatus, errorThrown);
@@ -122,10 +120,10 @@
 
         // Event listener for toggle switch
         $('#toggleSwitch').change(function() {
-            if(this.checked) {
-                toggleSystem('on');
+            if (this.checked) {
+                toggleSystem('on');  // Enable PID
             } else {
-                toggleSystem('off');
+                toggleSystem('off');  // Manual Override
             }
         });
 
