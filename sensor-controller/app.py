@@ -228,6 +228,7 @@ def toggle_system():
 
     return jsonify({'message': response_message}), 200
 
+
 @app.route('/off', methods=['POST'])
 def turn_off():
     global manual_override
@@ -303,23 +304,13 @@ def is_winter():
 def adjust_relays(pid_output, average_temperature):
     global manual_override
     if manual_override:
+        GPIO.output(coolingRelayPin, GPIO.LOW)
+        GPIO.output(heatingRelayPin, GPIO.LOW)
+        GPIO.output(fanRelayPin, GPIO.LOW)
         redis_client.set('system_state', 'Manual Override')
         return "Manual Override"
 
-    # If it's summer or winter and it's outside the threshold, do nothing
-    if is_summer() and average_temperature < setpointTempF:
-        GPIO.output(coolingRelayPin, GPIO.LOW)
-        GPIO.output(heatingRelayPin, GPIO.LOW)
-        GPIO.output(fanRelayPin, GPIO.LOW)
-        redis_client.set('system_state', 'Off')
-        return "Summer mode: No heating"
-    if is_winter() and average_temperature > setpointTempF:
-        GPIO.output(coolingRelayPin, GPIO.LOW)
-        GPIO.output(heatingRelayPin, GPIO.LOW)
-        GPIO.output(fanRelayPin, GPIO.LOW)
-        redis_client.set('system_state', 'Off')
-        return "Winter mode: No cooling"
-
+    # Automatic control (PID active)
     if average_temperature < setpointTempF - pid_output:
         GPIO.output(coolingRelayPin, GPIO.LOW)
         GPIO.output(heatingRelayPin, GPIO.HIGH)
@@ -338,6 +329,7 @@ def adjust_relays(pid_output, average_temperature):
         GPIO.output(fanRelayPin, GPIO.LOW)
         redis_client.set('system_state', 'Off')
         return "Off"
+
 
 
 if __name__ == '__main__':
