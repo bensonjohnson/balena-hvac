@@ -47,7 +47,8 @@
 
                     // Update toggle switch state based on pidEnabled
                     $('#toggleSwitch').prop('checked', data.pidEnabled);
-                    $('#toggleMessage').text(`Current System State: ${data.systemState}`);
+                    // Removed the line updating #toggleMessage
+                    // Since we display system state in #systemState, this is redundant
                 },
                 error: function(jqXHR, textStatus, errorThrown) {
                     console.error('Error fetching data:', textStatus, errorThrown);
@@ -123,12 +124,12 @@
                 data: JSON.stringify({ state: state }),
                 dataType: 'json',
                 success: function(response) {
-                    $('#toggleMessage').text(response.message);
+                    $('#toggleStatusMessage').text(response.message);
                     fetchData();
                 },
                 error: function(jqXHR, textStatus, errorThrown) {
                     console.error('Error toggling system:', textStatus, errorThrown);
-                    $('#toggleMessage').text('Error: ' + textStatus + ' ' + errorThrown);
+                    $('#toggleStatusMessage').text('Error: ' + textStatus + ' ' + errorThrown);
                 }
             });
         }
@@ -185,7 +186,6 @@
         </label>
         <p>Toggle System (ON/OFF)</p>
     </div>
-    <p id="toggleMessage"></p>
 
     <div id="sensorControl">
         <label for="sensor-select">Select Sensor:</label>
