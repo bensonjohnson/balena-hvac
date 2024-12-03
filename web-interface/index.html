@@ -7,6 +7,10 @@
     <link rel="stylesheet" type="text/css" href="styles.css">
     <!-- Include jQuery -->
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+
+    <!-- Include Font Awesome for the icons (optional) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
+
     <script>
     $(document).ready(function() {
         let currentMode = 'average';
@@ -15,7 +19,7 @@
         // Function to fetch data and update UI
         function fetchData() {
             $.ajax({
-                url: '/api/getstatus',  // Updated URL to include /api/
+                url: '/api/getstatus',
                 method: 'GET',
                 dataType: 'json',
                 success: function(data) {
@@ -47,8 +51,10 @@
 
                     // Update toggle switch state based on pidEnabled
                     $('#toggleSwitch').prop('checked', data.pidEnabled);
-                    // Removed the line updating #toggleMessage
-                    // Since we display system state in #systemState, this is redundant
+
+                    // Update seasonal settings switches
+                    $('#heatingEnabled').prop('checked', data.heating_enabled);
+                    $('#coolingEnabled').prop('checked', data.cooling_enabled);
                 },
                 error: function(jqXHR, textStatus, errorThrown) {
                     console.error('Error fetching data:', textStatus, errorThrown);
@@ -80,7 +86,7 @@
         // Function to set the mode (average or specific sensor)
         function setMode(mode, sensorName) {
             $.ajax({
-                url: '/api/set_mode',  // Updated URL to include /api/
+                url: '/api/set_mode',
                 method: 'POST',
                 contentType: 'application/json',
                 data: JSON.stringify({ mode: mode, sensor_name: sensorName }),
@@ -118,21 +124,57 @@
         // Function to toggle the system (activate/deactivate PID)
         function toggleSystem(state) {
             $.ajax({
-                url: '/api/toggle_system',  // Updated URL to include /api/
+                url: '/api/toggle_system',
                 method: 'POST',
                 contentType: 'application/json',
                 data: JSON.stringify({ state: state }),
                 dataType: 'json',
                 success: function(response) {
-                    $('#toggleStatusMessage').text(response.message);
                     fetchData();
                 },
                 error: function(jqXHR, textStatus, errorThrown) {
                     console.error('Error toggling system:', textStatus, errorThrown);
-                    $('#toggleStatusMessage').text('Error: ' + textStatus + ' ' + errorThrown);
                 }
             });
         }
+
+        // Event listeners for seasonal settings switches
+        $('#heatingEnabled').change(function() {
+            updateSeasonalSettings();
+        });
+
+        $('#coolingEnabled').change(function() {
+            updateSeasonalSettings();
+        });
+
+        function updateSeasonalSettings() {
+            const heatingEnabled = $('#heatingEnabled').is(':checked');
+            const coolingEnabled = $('#coolingEnabled').is(':checked');
+
+            $.ajax({
+                url: '/api/set_seasonal_settings',
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    heating_enabled: heatingEnabled,
+                    cooling_enabled: coolingEnabled
+                }),
+                success: function(response) {
+                    $('#statusMessage').text(response.message);
+                    fetchData();
+                },
+                error: function(jqXHR, textStatus, errorThrown) {
+                    console.error('Error updating seasonal settings:', textStatus, errorThrown);
+                    $('#statusMessage').text('Error: ' + textStatus + ' ' + errorThrown);
+                }
+            });
+        }
+
+        // Toggle the visibility of the seasonal settings section
+        $('#toggleSeasonalSettings').click(function() {
+            $('#seasonalSettings').slideToggle();
+            $(this).find('i').toggleClass('fa-chevron-down fa-chevron-up');
+        });
 
         // Fetch initial data
         fetchData();
@@ -201,6 +243,23 @@
             <input type="submit" value="Set Temperature">
         </form>
         <p id="statusMessage"></p>
+    </div>
+
+    <!-- Seasonal Settings Section -->
+    <div id="seasonalSettingsContainer">
+        <button id="toggleSeasonalSettings" class="collapsible">
+            Seasonal Settings <i class="fas fa-chevron-down"></i>
+        </button>
+        <div id="seasonalSettings" style="display: none;">
+            <div class="toggleOption">
+                <label for="heatingEnabled">Enable Heating:</label>
+                <input type="checkbox" id="heatingEnabled">
+            </div>
+            <div class="toggleOption">
+                <label for="coolingEnabled">Enable Cooling:</label>
+                <input type="checkbox" id="coolingEnabled">
+            </div>
+        </div>
     </div>
 </body>
 </html>
