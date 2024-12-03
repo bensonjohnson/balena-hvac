@@ -1,0 +1,4 @@
+RPi.GPIO
+adafruit-circuitpython-sht31d
+redis
+git+https://github.com/benoitc/gunicorn.git

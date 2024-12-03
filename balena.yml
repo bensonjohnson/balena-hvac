@@ -5,8 +5,10 @@ name: SBC-HVAC
 application:
   type: microservices
 services:
-  - name: sensor-controller
-    build: ./sensor-controller
+  - name: relay-controller
+    build: ./relay-controller
+  - name: sensor-processing
+    build: ./sensory-processing
   - name: web-interface
     build: ./web-interface
   - name: nginx-proxy

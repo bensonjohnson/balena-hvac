@@ -1,7 +1,12 @@
 version: '2'
 services:
-  sensor-controller:
-    build: ./sensor-controller
+  relay-controller:
+    build: ./relay-controller
+    restart: always
+    depends_on:
+      -  sensor-processing
+  sensor-processing:
+    build: ./sensor-processing
     restart: always
     devices:
       - "/dev/i2c-1:/dev/i2c-1"
@@ -16,7 +21,7 @@ services:
   web-interface:
     build: ./web-interface
     depends_on:
-      - sensor-controller
+      - relay-controller
   nginx-proxy:
     build: ./nginx-config
     ports:
@@ -27,9 +32,9 @@ services:
   influx-logger:
     build: ./influx-logger
     depends_on:
-      - sensor-controller
+      - relay-controller
     environment:
-      - API_URL=http://sensor-controller:5000/getstatus
+      - API_URL=http://relay-controller:5000/getstatus
       - INFLUXDB_URL=http://influxdb:8086
       - INFLUXDB_TOKEN=YourInfluxDBTokenHere
       - INFLUXDB_ORG=YourOrgName
