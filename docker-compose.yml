@@ -6,6 +6,12 @@ services:
     devices:
       - "/dev/i2c-1:/dev/i2c-1"
     privileged: true
+  autohupr:
+    image: bh.cr/balenalabs/autohupr-aarch64
+    tmpfs:
+      - /tmp/work
+    labels:
+      io.balena.features.balena-api: 1
 #    depends_on:
 #      - mosquitto
 #  mosquitto:
